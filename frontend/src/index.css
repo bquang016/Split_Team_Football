@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+:root {
+  --font-sans: "Hanken Grotesk", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+@theme {
+  /* Pitch Slate Editorial Design System */
+  --color-background: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-surface-dim: #E2E8F0;
+  --color-surface-bright: #F8FAFC;
+  --color-surface-container-lowest: #FFFFFF;
+  --color-surface-container-low: #F1F5F9;
+  --color-surface-container: #E2E8F0;
+  --color-surface-container-high: #CBD5E1;
+  --color-surface-container-highest: #94A3B8;
+
+  /* Typography Colors */
+  --color-on-surface: #0F172A;
+  --color-on-surface-variant: #475569;
+  --color-inverse-surface: #1E293B;
+  --color-inverse-on-surface: #F8FAFC;
+  --color-outline: #64748B;
+  --color-outline-variant: #E2E8F0;
+
+  /* Pitch Emerald Brand */
+  --color-primary: #059669;
+  --color-on-primary: #FFFFFF;
+  --color-primary-container: #047857;
+  --color-on-primary-container: #ECFDF5;
+  --color-inverse-primary: #10B981;
+
+  /* Secondary Stadium Slate */
+  --color-secondary: #0F172A;
+  --color-on-secondary: #FFFFFF;
+  --color-secondary-container: #1E293B;
+  --color-on-secondary-container: #F8FAFC;
+
+  /* Club Jerseys & Status */
+  --color-team-a: #DC2626; /* Spain Red */
+  --color-team-b: #2563EB; /* France Blue */
+  --color-team-gk: #D97706; /* Goalkeeper Gold */
+  --color-error: #DC2626;
+  --color-success: #059669;
+
+  /* Typography Fonts */
+  --font-sans: "Hanken Grotesk", sans-serif;
+  --font-headline: "Hanken Grotesk", sans-serif;
+  --font-heading: "Hanken Grotesk", sans-serif;
+  --font-body: "Hanken Grotesk", sans-serif;
+  --font-display: "Hanken Grotesk", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+@layer base {
+  * {
+    border-color: #E2E8F0;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #F8FAFC;
+    color: #0F172A;
+    font-family: var(--font-sans);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-headline, .font-heading {
+    font-family: var(--font-sans);
+    letter-spacing: -0.02em;
+    color: #0F172A;
+  }
+
+  p, span, div, td, th, input, select, button, textarea {
+    font-family: var(--font-sans);
+  }
+
+  code, kbd, samp, pre, .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Custom Minimalist Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Material Symbols helper */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+.material-symbols-outlined.fill {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Clean Surface Classes */
+.glass-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F8;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
+}
+
+.glass-modal {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F8;
+  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+}
+
+/* Athletic Button Physics */
+.btn-athletic {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-athletic:active {
+  transform: scale(0.97);
+}
