@@ -17,8 +17,12 @@ public class LeaderboardItemDto {
     private UserDto user;
     private Integer totalGoals;
     private Integer totalAssists;
+    private Integer totalSaves;
     private Integer totalWins;
+    private Integer totalLosses;
+    private Integer totalDraws;
     private Integer totalMatches;
+    private Integer totalMvp;
     private Double winRate;
     private LocalDateTime updatedAt;
 
@@ -29,8 +33,12 @@ public class LeaderboardItemDto {
                 .user(UserDto.fromEntity(cache.getUser()))
                 .totalGoals(cache.getTotalGoals())
                 .totalAssists(cache.getTotalAssists())
+                .totalSaves(cache.getTotalSaves())
                 .totalWins(cache.getTotalWins())
+                .totalLosses(cache.getTotalLosses())
+                .totalDraws(cache.getTotalDraws())
                 .totalMatches(cache.getTotalMatches())
+                .totalMvp(cache.getTotalMvp())
                 .winRate(cache.getWinRate())
                 .updatedAt(cache.getUpdatedAt())
                 .build();

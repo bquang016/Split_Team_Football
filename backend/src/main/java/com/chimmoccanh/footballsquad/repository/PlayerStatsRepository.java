@@ -28,6 +28,15 @@ public interface PlayerStatsRepository extends JpaRepository<PlayerStats, UUID> 
     @Query("SELECT COALESCE(SUM(ps.assists), 0) FROM PlayerStats ps WHERE ps.user.id = :userId")
     int sumAssistsByUserId(@Param("userId") UUID userId);
 
+    @Query("SELECT COALESCE(SUM(ps.saves), 0) FROM PlayerStats ps WHERE ps.user.id = :userId")
+    int sumSavesByUserId(@Param("userId") UUID userId);
+
+    @Query("SELECT COUNT(ps) FROM PlayerStats ps WHERE ps.user.id = :userId AND ps.isMvp = true")
+    int countMvpByUserId(@Param("userId") UUID userId);
+
+    @Query("SELECT COUNT(ps) FROM PlayerStats ps WHERE ps.user.id = :userId AND ps.isWinner = false AND ps.match.scoreTeamA != ps.match.scoreTeamB")
+    int countLossesByUserId(@Param("userId") UUID userId);
+
     @Query("SELECT COUNT(ps) FROM PlayerStats ps WHERE ps.user.id = :userId")
     int countMatchesByUserId(@Param("userId") UUID userId);
 }

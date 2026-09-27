@@ -42,6 +42,10 @@ public class PlayerStats {
     @Builder.Default
     private Integer assists = 0;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer saves = 0;
+
     @Column(name = "is_winner", nullable = false)
     @Builder.Default
     private Boolean isWinner = false;

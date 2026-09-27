@@ -4,7 +4,7 @@ import { Match, LeaderboardItem } from '../types';
 import { matchService } from '../services/matchService';
 import { leaderboardService } from '../services/leaderboardService';
 import { useAuthStore } from '../store/authStore';
-import { Button, Card } from '../ui';
+import { Button, Card, Badge, Avatar } from '../ui';
 import { MatchCard } from '../components/match/MatchCard';
 import { MetricBentoStrip } from '../components/leaderboard/MetricBentoStrip';
 import { CreateMatchModal } from '../components/match/CreateMatchModal';
@@ -15,12 +15,11 @@ import toast from 'react-hot-toast';
 export const DashboardPage: React.FC = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [matchCategory, setMatchCategory] = useState<'all' | 'live' | 'upcoming' | 'completed'>('all');
   const { user, isAdmin } = useAuthStore();
 
   const fetchData = async () => {
-    setLoading(true);
     try {
       const [matchesRes, lbRes] = await Promise.all([
         matchService.getMatches(),
@@ -31,8 +30,6 @@ export const DashboardPage: React.FC = () => {
       if (lbRes.success) setLeaderboard(lbRes.data || []);
     } catch {
       toast.error('Không thể tải dữ liệu trang chủ');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -40,13 +37,32 @@ export const DashboardPage: React.FC = () => {
     fetchData();
   }, []);
 
-  // Find next upcoming match (not completed or cancelled)
-  const nextMatch = matches.find(
-    (m) => m.status !== 'COMPLETED' && m.status !== 'CANCELLED'
+  // Filter categorized matches
+  const liveMatches = matches.filter((m) => m.status === 'IN_PROGRESS');
+  const upcomingMatches = matches.filter(
+    (m) =>
+      m.status === 'PENDING' ||
+      m.status === 'JERSEY_SELECTION' ||
+      m.status === 'PLAYER_PICKING' ||
+      m.status === 'TRADE_WINDOW'
   );
+  const completedMatches = matches.filter((m) => m.status === 'COMPLETED');
 
-  // Recent completed matches
-  const recentMatches = matches.filter((m) => m.status === 'COMPLETED').slice(0, 3);
+  // Next primary upcoming match
+  const nextMatch = upcomingMatches[0] || liveMatches[0];
+
+  // User's personal stats in the leaderboard
+  const myStats = leaderboard.find((item) => item.user.id === user?.id);
+
+  // Admin calculations
+  const totalLeagueGoals = matches
+    .filter((m) => m.status === 'COMPLETED')
+    .reduce((acc, m) => acc + (m.scoreTeamA || 0) + (m.scoreTeamB || 0), 0);
+  const totalCompletedMatches = completedMatches.length;
+  const avgGoalsPerMatch =
+    totalCompletedMatches > 0
+      ? (totalLeagueGoals / totalCompletedMatches).toFixed(2)
+      : '0.00';
 
   // Top metric items
   const topScorer = leaderboard[0];
@@ -57,6 +73,10 @@ export const DashboardPage: React.FC = () => {
 
   const handleJoinNextMatch = async () => {
     if (!nextMatch || !user) return;
+    if (nextMatch.status !== 'PENDING') {
+      toast.error('Trận đấu đã bắt đầu hoặc đã qua giai đoạn điểm danh');
+      return;
+    }
     try {
       if (hasJoinedNextMatch) {
         await matchService.leaveMatch(nextMatch.id);
@@ -72,60 +92,190 @@ export const DashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto">
-      {/* Top Welcome Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              ChiMocCanh • Thể thức 7v7
-            </span>
-            <span className="text-xs text-slate-400 font-medium">Saigon Sunday League</span>
+    <div className="flex flex-col gap-6 max-w-7xl mx-auto font-sans text-slate-900 dark:text-slate-100">
+      {/* Top Welcome Row Bento Glass */}
+      <Card elevation="glass" glow className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Badge variant="primary" dot size="sm">
+                Sân 7v7 - Saigon League
+              </Badge>
+              <span className="text-xs text-slate-500 font-space font-medium">Matchday Hub</span>
+            </div>
+            <h1 className="font-space font-black text-2xl sm:text-3xl text-slate-900 dark:text-white mt-2 tracking-tight">
+              {user ? `Xin chào, ${user.fullName}!` : 'ChimMocCanh Matchday Hub'}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
+              Quản lý trận đấu, chia đội, chuyển nhượng và theo dõi phong độ cầu thủ hàng tuần.
+            </p>
           </div>
-          <h1 className="font-headline font-black text-2xl sm:text-3xl text-slate-900 mt-1">
-            {user ? `Xin chào, ${user.fullName}!` : 'ChiMocCanh Matchday Hub'}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Quản lý trận đấu, quay số chia đội và theo dõi phong độ cầu thủ hàng tuần.
-          </p>
-        </div>
 
-        {isAdmin() && (
-          <Button
-            variant="primary"
-            leftIcon="add_circle"
-            onClick={() => setIsModalOpen(true)}
-            className="self-start sm:self-auto"
-          >
-            Tạo trận đấu mới
-          </Button>
-        )}
-      </div>
+          <div className="flex items-center gap-3">
+            {user && (
+              <Link to="/history">
+                <Button variant="secondary" size="md" leftIcon="history">
+                  Lịch sử đấu
+                </Button>
+              </Link>
+            )}
+            {isAdmin() && (
+              <Button
+                variant="primary"
+                leftIcon="add_circle"
+                onClick={() => setIsModalOpen(true)}
+                className="self-start sm:self-auto"
+              >
+                Tạo trận đấu mới
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* USER: Personal Performance Bento Card - High Contrast Clean Light/Dark Theme */}
+      {user && (
+        <Card elevation="level1" className="p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-3">
+                <Avatar name={user.fullName} jerseyNumber={user.jerseyNumber} size="md" showNumber />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-space font-black text-base text-slate-950 dark:text-white">
+                      Thành Tích Cá Nhân: {user.fullName}
+                    </h3>
+                    <Badge variant="gold" size="sm">
+                      Số áo: #{user.jerseyNumber || '-'}
+                    </Badge>
+                  </div>
+                  <span className="text-xs text-slate-600 dark:text-slate-400 font-space">
+                    {myStats ? `Hạng #${myStats.rank} trên Bảng xếp hạng` : 'Chưa có dữ liệu thi đấu'}
+                  </span>
+                </div>
+              </div>
+              <Link to="/history">
+                <Button size="sm" variant="secondary" rightIcon="arrow_forward">
+                  Xem chi tiết lịch sử đấu
+                </Button>
+              </Link>
+            </div>
+
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-center">
+                <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300">Bàn Thắng</span>
+                <span className="font-space font-black text-2xl text-slate-950 dark:text-white mt-1">
+                  {myStats?.totalGoals || 0}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-center">
+                <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300">Kiến Tạo</span>
+                <span className="font-space font-black text-2xl text-slate-950 dark:text-white mt-1">
+                  {myStats?.totalAssists || 0}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-center">
+                <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300">Cứu Thua</span>
+                <span className="font-space font-black text-2xl text-slate-950 dark:text-white mt-1">
+                  {myStats?.totalSaves || 0}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-center">
+                <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300">Số Lần MVP</span>
+                <span className="font-space font-black text-2xl text-amber-600 dark:text-amber-400 mt-1">
+                  {myStats?.totalMvp || 0}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-center">
+                <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300">Tỉ Lệ Thắng</span>
+                <span className="font-space font-black text-2xl text-emerald-600 dark:text-emerald-400 mt-1">
+                  {myStats?.winRate ? `${myStats.winRate}%` : '0%'}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-center">
+                <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300">Trận (T-H-B)</span>
+                <span className="font-space font-black text-lg text-slate-950 dark:text-white mt-1">
+                  {myStats?.totalWins || 0}W - {myStats?.totalDraws || 0}D - {myStats?.totalLosses || 0}L
+                </span>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* ADMIN: League Stats Widget */}
+      {isAdmin() && (
+        <Card elevation="level1" className="p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-emerald-600 text-xl">admin_panel_settings</span>
+              <h3 className="font-space font-extrabold text-base text-slate-950 dark:text-white">
+                Thống Kê Quản Trị Hệ Thống
+              </h3>
+            </div>
+            <Badge variant="primary" size="sm">
+              Admin Overview
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-center">
+              <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300">Tổng Bàn Thắng Giải</span>
+              <span className="block font-space font-black text-2xl text-slate-950 dark:text-white mt-1">
+                {totalLeagueGoals}
+              </span>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-center">
+              <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300">Hiệu Suất Bàn / Trận</span>
+              <span className="block font-space font-black text-2xl text-slate-950 dark:text-white mt-1">
+                {avgGoalsPerMatch}
+              </span>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-center">
+              <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300">Tổng Trận Đã Đấu</span>
+              <span className="block font-space font-black text-2xl text-slate-950 dark:text-white mt-1">
+                {totalCompletedMatches}
+              </span>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-center">
+              <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300">Tổng Cầu Thủ Đăng Ký</span>
+              <span className="block font-space font-black text-2xl text-slate-950 dark:text-white mt-1">
+                {leaderboard.length}
+              </span>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Hero: Next Match Spotlight */}
       {nextMatch && (
-        <div className="relative overflow-hidden rounded-xl bg-white border border-slate-200 p-6 shadow-2xs">
+        <Card elevation="level1" className="p-6 sm:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
           <div className="flex flex-col gap-5">
             {/* Header info */}
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold uppercase">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Trận Đấu Sắp Diễn Ra
-              </span>
-              <span className="text-xs text-slate-400 font-medium">
-                {nextMatch.location || 'Sân cỏ nhân tạo D3 Bình Thạnh'}
+              <Badge variant={nextMatch.status === 'IN_PROGRESS' ? 'live' : 'primary'} size="md" dot>
+                {nextMatch.status === 'IN_PROGRESS' ? 'Đang Diễn Ra (Live)' : 'Trận Đấu Sắp Tới'}
+              </Badge>
+              <span className="text-xs text-slate-500 font-space font-medium flex items-center gap-1">
+                <span className="material-symbols-outlined text-sm">location_on</span>
+                {nextMatch.location || 'Sân cố định'}
               </span>
             </div>
 
             {/* Match Title & Datetime */}
             <div>
-              <h2 className="font-headline font-black text-2xl sm:text-3xl text-slate-900 tracking-tight">
+              <h2 className="font-space font-black text-2xl sm:text-3xl text-slate-900 dark:text-white tracking-tight">
                 {nextMatch.title || `Trận bóng ngày ${nextMatch.matchDate}`}
               </h2>
-              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 mt-2 font-medium">
+              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-slate-400 mt-2.5 font-space font-medium">
                 <span className="flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[16px] text-red-600">
+                  <span className="material-symbols-outlined text-[16px] text-rose-600">
                     calendar_today
                   </span>
                   {formatDateVi(nextMatch.matchDate)}
@@ -140,54 +290,154 @@ export const DashboardPage: React.FC = () => {
                 )}
                 <span className="flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-[16px] text-blue-600">groups</span>
-                  {nextMatch.participants?.length || 0} cầu thủ đã đăng ký
+                  <strong className="text-slate-900 dark:text-white">
+                    {nextMatch.participants?.length || 0}
+                  </strong>{' '}
+                  cầu thủ đã tham gia
                 </span>
               </div>
             </div>
 
             {/* Team Jersey Colors Banner */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md py-2.5 px-3.5 rounded-lg bg-slate-50 border border-slate-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md py-3 px-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-2.5">
-                <span className="w-3.5 h-3.5 rounded-full border border-red-300" style={{ backgroundColor: TEAM_A_COLOR }} />
-                <span className="text-xs font-bold text-slate-800">{TEAM_A_NAME} (Đỏ)</span>
+                <span
+                  className="w-3.5 h-3.5 rounded-full border border-rose-400/40 shadow-xs"
+                  style={{ backgroundColor: TEAM_A_COLOR }}
+                />
+                <span className="text-xs font-space font-bold text-slate-800 dark:text-slate-200">
+                  {TEAM_A_NAME} (Đỏ)
+                </span>
               </div>
               <div className="flex items-center gap-2.5">
-                <span className="w-3.5 h-3.5 rounded-full border border-blue-300" style={{ backgroundColor: TEAM_B_COLOR }} />
-                <span className="text-xs font-bold text-slate-800">{TEAM_B_NAME} (Xanh)</span>
+                <span
+                  className="w-3.5 h-3.5 rounded-full border border-blue-400/40 shadow-xs"
+                  style={{ backgroundColor: TEAM_B_COLOR }}
+                />
+                <span className="text-xs font-space font-bold text-slate-800 dark:text-slate-200">
+                  {TEAM_B_NAME} (Xanh)
+                </span>
               </div>
             </div>
 
             {/* Action Row */}
-            <div className="flex flex-wrap items-center gap-3 pt-1">
+            <div className="flex flex-wrap items-center gap-3 pt-2">
               <Link to={`/matches/${nextMatch.id}`}>
                 <Button size="md" variant="primary" rightIcon="arrow_forward">
                   Vào phòng trận đấu
                 </Button>
               </Link>
-              {user && (
+              {user && nextMatch.status === 'PENDING' && (
                 <Button
                   size="md"
-                  variant={hasJoinedNextMatch ? 'danger' : 'surface'}
+                  variant={hasJoinedNextMatch ? 'danger' : 'secondary'}
                   leftIcon={hasJoinedNextMatch ? 'cancel' : 'how_to_reg'}
                   onClick={handleJoinNextMatch}
                 >
                   {hasJoinedNextMatch ? 'Hủy điểm danh' : 'Điểm danh tham gia'}
                 </Button>
               )}
+              {user && nextMatch.status !== 'PENDING' && (
+                <span className="text-xs font-space text-amber-700 dark:text-amber-400 flex items-center gap-1 font-medium">
+                  <span className="material-symbols-outlined text-sm">lock</span>
+                  Đã đóng điểm danh ({nextMatch.status === 'IN_PROGRESS' ? 'Đang thi đấu' : 'Đang chia đội/xếp sa bàn'})
+                </span>
+              )}
             </div>
           </div>
-        </div>
+        </Card>
       )}
+
+      {/* Match Cards Showcase by Category */}
+      <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 px-1">
+          <div>
+            <h3 className="font-space font-extrabold text-lg text-slate-900 dark:text-white">
+              Danh Sách Các Trận Đấu
+            </h3>
+            <p className="text-xs text-slate-500 font-space">
+              Phân loại: Đang thi đấu, Sắp diễn ra, Đã kết thúc
+            </p>
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <button
+              onClick={() => setMatchCategory('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-space font-bold transition-all cursor-pointer ${
+                matchCategory === 'all'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
+            >
+              Tất cả ({matches.length})
+            </button>
+            <button
+              onClick={() => setMatchCategory('live')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-space font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                matchCategory === 'live'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+              Đang thi đấu ({liveMatches.length})
+            </button>
+            <button
+              onClick={() => setMatchCategory('upcoming')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-space font-bold transition-all cursor-pointer ${
+                matchCategory === 'upcoming'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
+            >
+              Sắp diễn ra ({upcomingMatches.length})
+            </button>
+            <button
+              onClick={() => setMatchCategory('completed')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-space font-bold transition-all cursor-pointer ${
+                matchCategory === 'completed'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
+            >
+              Đã kết thúc ({completedMatches.length})
+            </button>
+          </div>
+        </div>
+
+        {/* Matches Grid */}
+        {matches.length === 0 ? (
+          <Card elevation="level1" className="py-12 text-center text-xs text-slate-400 italic bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            Chưa có trận đấu nào được tạo
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            {(matchCategory === 'all'
+              ? matches
+              : matchCategory === 'live'
+              ? liveMatches
+              : matchCategory === 'upcoming'
+              ? upcomingMatches
+              : completedMatches
+            ).map((m) => (
+              <MatchCard key={m.id} match={m} />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Bento Stats Metric Strip */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-headline font-bold text-lg text-slate-900">Thành Tích Nổi Bật</h3>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <h3 className="font-space font-extrabold text-lg text-slate-900 dark:text-white">
+            Bảng Thành Tích Cá Nhân Nổi Bật
+          </h3>
           <Link
             to="/leaderboard"
-            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+            className="text-xs font-space font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
           >
-            <span>Xem bảng xếp hạng</span>
+            <span>Xem đầy đủ BXH</span>
             <span className="material-symbols-outlined text-[16px]">chevron_right</span>
           </Link>
         </div>
@@ -196,32 +446,6 @@ export const DashboardPage: React.FC = () => {
           topAssister={topAssister}
           topWinner={topWinner}
         />
-      </div>
-
-      {/* Recent Matches */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-headline font-bold text-lg text-slate-900">Kết Quả Các Trận Gần Đây</h3>
-          <Link
-            to="/matches"
-            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
-          >
-            <span>Tất cả trận đấu</span>
-            <span className="material-symbols-outlined text-[16px]">chevron_right</span>
-          </Link>
-        </div>
-
-        {recentMatches.length === 0 ? (
-          <Card elevation="level1" className="py-8 text-center text-sm text-slate-400 italic">
-            Chưa có trận đấu nào kết thúc
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {recentMatches.map((m) => (
-              <MatchCard key={m.id} match={m} />
-            ))}
-          </div>
-        )}
       </div>
 
       <CreateMatchModal

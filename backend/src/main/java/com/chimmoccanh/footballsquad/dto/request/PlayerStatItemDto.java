@@ -20,6 +20,9 @@ public class PlayerStatItemDto {
     @Min(value = 0, message = "Số kiến tạo không thể âm")
     private Integer assists = 0;
 
+    @Min(value = 0, message = "Số cứu thua không thể âm")
+    private Integer saves = 0;
+
     private Boolean isWinner = false;
 
     private Boolean isMvp = false;

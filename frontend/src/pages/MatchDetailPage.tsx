@@ -8,12 +8,14 @@ import { lineupService } from '../services/lineupService';
 import { statsService, PlayerStatInput } from '../services/statsService';
 import { useAuthStore } from '../store/authStore';
 import { useWebSocketStore } from '../store/websocketStore';
-import { Avatar, Badge, Button, Card, Modal, Input, Select } from '../ui';
+import { Avatar, Badge, Button, Card, Breadcrumbs, Tabs } from '../ui';
 import { ScoreBoard } from '../components/match/ScoreBoard';
 import { StatusBadge } from '../components/match/StatusBadge';
 import { SpinWheel } from '../components/spin/SpinWheel';
 import { CaptainFaceOff } from '../components/spin/CaptainFaceOff';
+import { JerseySelectionStep } from '../components/jersey/JerseySelectionStep';
 import { PickList } from '../components/pick/PickList';
+import { TradeWindow } from '../components/trade/TradeWindow';
 import { FootballPitch } from '../components/lineup/FootballPitch';
 import { FormationPreset } from '../components/lineup/FormationPreset';
 import { LineupExport } from '../components/lineup/LineupExport';
@@ -27,7 +29,7 @@ export const MatchDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'spin' | 'pick' | 'lineup' | 'stats'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'spin' | 'jersey' | 'pick' | 'trade' | 'lineup' | 'stats'>('overview');
 
   // Spin wheel state
   const [hostAId, setHostAId] = useState<string>('');
@@ -45,7 +47,9 @@ export const MatchDetailPage: React.FC = () => {
   const [scoreB, setScoreB] = useState(0);
 
   // Stats state
-  const [playerStatsInputs, setPlayerStatsInputs] = useState<Record<string, { goals: number; assists: number; isMvp: boolean }>>({});
+  const [playerStatsInputs, setPlayerStatsInputs] = useState<
+    Record<string, { goals: number; assists: number; saves: number; isMvp: boolean }>
+  >({});
   const [savingStats, setSavingStats] = useState(false);
 
   const { user, isAdmin } = useAuthStore();
@@ -66,7 +70,6 @@ export const MatchDetailPage: React.FC = () => {
           setHostAId(res.data.spinSession.hostA?.id || '');
           setHostBId(res.data.spinSession.hostB?.id || '');
         } else {
-          // Check participants with isHost
           const hosts = res.data.participants?.filter((p) => p.isHost) || [];
           if (hosts.length >= 2) {
             setHostAId(hosts[0].user.id);
@@ -92,7 +95,7 @@ export const MatchDetailPage: React.FC = () => {
     const unsubs = [
       subscribe(`/topic/match/${id}/status`, (updatedMatch: Match) => {
         setMatch((prev) => (prev ? { ...prev, status: updatedMatch.status } : updatedMatch));
-        toast('Trạng thái trận đấu vừa được cập nhật', { icon: '⚽' });
+        toast.success('Trạng thái trận đấu vừa được cập nhật');
       }),
       subscribe(`/topic/match/${id}/spin`, (session: any) => {
         setIsSpinning(true);
@@ -101,12 +104,19 @@ export const MatchDetailPage: React.FC = () => {
       subscribe(`/topic/match/${id}/pick`, () => {
         fetchMatch();
       }),
+      subscribe(`/topic/match/${id}/trade`, () => {
+        fetchMatch();
+      }),
       subscribe(`/topic/match/${id}/lineup`, (lineups: MatchLineup[]) => {
         setLocalLineups(lineups);
         setMatch((prev) => (prev ? { ...prev, lineups } : prev));
       }),
       subscribe(`/topic/match/${id}/score`, (updatedMatch: Match) => {
-        setMatch((prev) => (prev ? { ...prev, scoreTeamA: updatedMatch.scoreTeamA, scoreTeamB: updatedMatch.scoreTeamB } : updatedMatch));
+        setMatch((prev) =>
+          prev
+            ? { ...prev, scoreTeamA: updatedMatch.scoreTeamA, scoreTeamB: updatedMatch.scoreTeamB }
+            : updatedMatch
+        );
       }),
     ];
 
@@ -118,7 +128,7 @@ export const MatchDetailPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-2 border-red-500 border-t-transparent rounded-full animate-spin mb-3" />
+        <div className="w-10 h-10 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3" />
         <p className="text-xs font-mono text-slate-500">Đang tải dữ liệu trận đấu...</p>
       </div>
     );
@@ -127,7 +137,7 @@ export const MatchDetailPage: React.FC = () => {
   if (!match) {
     return (
       <div className="text-center py-20">
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Không tìm thấy trận đấu</h2>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Không tìm thấy trận đấu</h2>
         <Link to="/matches">
           <Button variant="primary">Quay lại danh sách</Button>
         </Link>
@@ -140,14 +150,27 @@ export const MatchDetailPage: React.FC = () => {
   const hostBUser = participants.find((p) => p.user.id === hostBId)?.user || match.spinSession?.hostB;
   const winnerUser = match.spinSession?.winner;
 
-  // Check if current user is admin OR captain
-  const isCaptain = participants.some((p) => p.user.id === user?.id && p.isHost);
-  const canSaveLineup = isAdmin() || isCaptain;
+  // Captaincy & permissions
+  const isCaptainA = participants.some((p) => p.user.id === user?.id && p.isHost && p.team === 'A');
+  const isCaptainB = participants.some((p) => p.user.id === user?.id && p.isHost && p.team === 'B');
+  const isCaptain = isCaptainA || isCaptainB;
+  const isWinnerCaptain = winnerUser && user?.id === winnerUser.id;
+  const canSelectJersey = isAdmin() || Boolean(isWinnerCaptain);
   const canPick = isAdmin() || isCaptain;
+
+  // Sa bàn permission: Admin can edit both teams; Captain A can only edit Team A; Captain B can only edit Team B
+  const canEditCurrentTeamLineup =
+    isAdmin() ||
+    (activeLineupTeam === 'A' && isCaptainA) ||
+    (activeLineupTeam === 'B' && isCaptainB);
 
   const hasJoined = participants.some((p) => p.user.id === user?.id);
 
   const handleJoinToggle = async () => {
+    if (match.status !== 'PENDING') {
+      toast.error('Trận đấu đã bắt đầu hoặc đã qua giai đoạn mở điểm danh');
+      return;
+    }
     try {
       if (hasJoined) {
         await matchService.leaveMatch(match.id);
@@ -175,7 +198,7 @@ export const MatchDetailPage: React.FC = () => {
     try {
       setIsSpinning(true);
       await spinService.startSpin(match.id, hostAId, hostBId);
-      toast.success('Bắt đầu quay chọn quyền ưu tiên!');
+      toast.success('Bắt đầu quay chọn đội trưởng ưu tiên!');
     } catch (err: any) {
       setIsSpinning(false);
       toast.error(err.response?.data?.message || 'Không thể bắt đầu quay');
@@ -223,26 +246,27 @@ export const MatchDetailPage: React.FC = () => {
 
   // Lineup manipulation
   const handleUpdateLineupCoord = (userId: string, xPercent: number, yPercent: number) => {
+    if (!canEditCurrentTeamLineup) return;
     setLocalLineups((prev) =>
-      prev.map((item) =>
-        item.user.id === userId ? { ...item, xPercent, yPercent } : item
-      )
+      prev.map((item) => (item.user.id === userId ? { ...item, xPercent, yPercent } : item))
     );
   };
 
   const handleUpdatePositionLabel = (userId: string, positionLabel: Position) => {
+    if (!canEditCurrentTeamLineup) return;
     setLocalLineups((prev) =>
-      prev.map((item) =>
-        item.user.id === userId ? { ...item, positionLabel } : item
-      )
+      prev.map((item) => (item.user.id === userId ? { ...item, positionLabel } : item))
     );
   };
 
   const handleApplyPreset = (presetIndex: number) => {
+    if (!canEditCurrentTeamLineup) {
+      toast.error('Bạn chỉ có quyền xếp đội hình cho đội của mình');
+      return;
+    }
     const preset = FORMATION_PRESETS_7V7[presetIndex];
     if (!preset) return;
 
-    // Get current starters of active team
     const teamPlayers = participants.filter((p) => p.team === activeLineupTeam);
     const updated = [...localLineups.filter((l) => l.team !== activeLineupTeam)];
 
@@ -261,7 +285,7 @@ export const MatchDetailPage: React.FC = () => {
     });
 
     setLocalLineups(updated);
-    toast.success(`Đã áp dụng sơ đồ ${preset.name}`);
+    toast.success(`Đã áp dụng sơ đồ ${preset.name} cho Đội ${activeLineupTeam}`);
   };
 
   const handleSaveLineupSubmit = async () => {
@@ -293,7 +317,7 @@ export const MatchDetailPage: React.FC = () => {
     setSavingStats(true);
     try {
       const statsPayload: PlayerStatInput[] = participants.map((p) => {
-        const input = playerStatsInputs[p.user.id] || { goals: 0, assists: 0, isMvp: false };
+        const input = playerStatsInputs[p.user.id] || { goals: 0, assists: 0, saves: 0, isMvp: false };
         const isWinner =
           (match.scoreTeamA > match.scoreTeamB && p.team === 'A') ||
           (match.scoreTeamB > match.scoreTeamA && p.team === 'B');
@@ -303,6 +327,7 @@ export const MatchDetailPage: React.FC = () => {
           team: p.team,
           goals: input.goals || 0,
           assists: input.assists || 0,
+          saves: input.saves || 0,
           isWinner,
           isMvp: input.isMvp || false,
         };
@@ -325,130 +350,209 @@ export const MatchDetailPage: React.FC = () => {
     label: `${p.user.fullName} (${p.user.jerseyNumber ? '#' + p.user.jerseyNumber : 'Số —'})`,
   }));
 
+  // Stepper flow
+  const matchSteps = [
+    {
+      step: 1,
+      label: 'Điểm danh',
+      status: match.status === 'PENDING' ? ('current' as const) : ('completed' as const),
+      onClick: () => setActiveTab('overview'),
+    },
+    {
+      step: 2,
+      label: 'Chọn áo',
+      status:
+        match.status === 'JERSEY_SELECTION'
+          ? ('current' as const)
+          : ['PLAYER_PICKING', 'TRADE_WINDOW', 'IN_PROGRESS', 'COMPLETED'].includes(match.status)
+          ? ('completed' as const)
+          : ('upcoming' as const),
+      onClick: () => setActiveTab('jersey'),
+    },
+    {
+      step: 3,
+      label: 'Pick quân',
+      status:
+        match.status === 'PLAYER_PICKING'
+          ? ('current' as const)
+          : ['TRADE_WINDOW', 'IN_PROGRESS', 'COMPLETED'].includes(match.status)
+          ? ('completed' as const)
+          : ('upcoming' as const),
+      onClick: () => setActiveTab('pick'),
+    },
+    {
+      step: 4,
+      label: 'Đổi người',
+      status:
+        match.status === 'TRADE_WINDOW'
+          ? ('current' as const)
+          : ['IN_PROGRESS', 'COMPLETED'].includes(match.status)
+          ? ('completed' as const)
+          : ('upcoming' as const),
+      onClick: () => setActiveTab('trade'),
+    },
+    {
+      step: 5,
+      label: 'Sa bàn & Đá',
+      status:
+        match.status === 'IN_PROGRESS'
+          ? ('current' as const)
+          : match.status === 'COMPLETED'
+          ? ('completed' as const)
+          : ('upcoming' as const),
+      onClick: () => setActiveTab('lineup'),
+    },
+    {
+      step: 6,
+      label: 'Thống kê',
+      status: match.status === 'COMPLETED' ? ('completed' as const) : ('upcoming' as const),
+      onClick: () => setActiveTab('stats'),
+    },
+  ];
+
   return (
-    <div className="flex flex-col gap-6 max-w-6xl mx-auto">
-      {/* Top Header Card */}
-      <div className="flex flex-col gap-4 p-6 sm:p-7 rounded-3xl bg-white border border-slate-200 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <StatusBadge status={match.status} />
-            <span className="text-xs font-mono text-slate-500 font-medium">
-              • {match.location || 'Sân cố định'} • Thể thức 7v7
-            </span>
-          </div>
+    <div className="flex flex-col gap-5 max-w-6xl mx-auto font-sans">
+      {/* 6 Steps Stepper Flow */}
+      <Breadcrumbs steps={matchSteps} />
 
-          {/* Quick status actions for Admin */}
-          {isAdmin() && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                variant="surface"
-                onClick={() => setIsScoreModalOpen(true)}
-                leftIcon="scoreboard"
-              >
-                Nhập tỉ số
-              </Button>
+      {/* Top Header Bento Glass Card */}
+      <Card elevation="glass" glow className="!p-5 sm:!p-6">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <StatusBadge status={match.status} />
+              <span className="text-xs font-space text-slate-400 dark:text-slate-500 font-medium">
+                • {match.location || 'Sân cố định'} • Thể thức 7v7 tự do
+              </span>
+            </div>
 
-              {match.status === 'PENDING' && (
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => handleUpdateStatus('CAPTAIN_SPINNING')}
-                  leftIcon="casino"
-                >
-                  Bắt đầu chia đội
-                </Button>
-              )}
-
-              {match.status === 'CAPTAIN_PICKING' && (
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => handleUpdateStatus('LINEUP_SETTING')}
-                  leftIcon="sports"
-                >
-                  Sang xếp sơ đồ
-                </Button>
-              )}
-
-              {match.status === 'LINEUP_SETTING' && (
+            {/* Quick status actions for Admin */}
+            {isAdmin() && (
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={() => handleUpdateStatus('IN_PROGRESS')}
-                  leftIcon="play_arrow"
+                  onClick={() => setIsScoreModalOpen(true)}
+                  leftIcon="scoreboard"
                 >
-                  Bắt đầu thi đấu
+                  Nhập tỉ số
                 </Button>
-              )}
 
-              {match.status === 'IN_PROGRESS' && (
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => handleUpdateStatus('COMPLETED')}
-                  leftIcon="sports_score"
-                >
-                  Kết thúc trận đấu
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
+                {match.status === 'PENDING' && (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setActiveTab('spin')}
+                    leftIcon="casino"
+                  >
+                    Vòng quay Đội trưởng
+                  </Button>
+                )}
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="font-heading font-black text-2xl sm:text-3xl text-slate-900">
-              {match.title || `Trận bóng ngày ${match.matchDate}`}
-            </h1>
-            <div className="flex items-center gap-4 text-xs font-mono text-slate-500 mt-1.5 font-medium">
-              <span>{formatDateVi(match.matchDate)}</span>
-              {match.matchTime && <span>{formatTimeVi(match.matchTime)}</span>}
-              <span>{participants.length} cầu thủ tham gia</span>
-            </div>
+                {match.status === 'JERSEY_SELECTION' && (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => handleUpdateStatus('PLAYER_PICKING')}
+                    leftIcon="checkroom"
+                  >
+                    Sang bước Pick quân
+                  </Button>
+                )}
+
+                {match.status === 'PLAYER_PICKING' && (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => handleUpdateStatus('TRADE_WINDOW')}
+                    leftIcon="swap_horiz"
+                  >
+                    Mở Chuyển nhượng (Trade)
+                  </Button>
+                )}
+
+                {match.status === 'TRADE_WINDOW' && (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => handleUpdateStatus('IN_PROGRESS')}
+                    leftIcon="play_arrow"
+                  >
+                    Bắt đầu thi đấu
+                  </Button>
+                )}
+
+                {match.status === 'IN_PROGRESS' && (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => handleUpdateStatus('COMPLETED')}
+                    leftIcon="sports_score"
+                  >
+                    Kết thúc trận đấu
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
-          {user && (
-            <Button
-              size="md"
-              variant={hasJoined ? 'danger' : 'primary'}
-              leftIcon={hasJoined ? 'cancel' : 'how_to_reg'}
-              onClick={handleJoinToggle}
-            >
-              {hasJoined ? 'Hủy tham gia' : 'Điểm danh tham gia'}
-            </Button>
-          )}
-        </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+            <div>
+              <h1 className="font-space font-black text-xl sm:text-2xl text-slate-900 dark:text-white tracking-tight">
+                {match.title || `Trận bóng ngày ${match.matchDate}`}
+              </h1>
+              <div className="flex items-center gap-3 text-xs sm:text-sm font-space text-slate-500 dark:text-slate-400 mt-1.5 font-medium">
+                <span>{formatDateVi(match.matchDate)}</span>
+                {match.matchTime && <span>• {formatTimeVi(match.matchTime)}</span>}
+                <span>
+                  • <strong className="text-slate-900 dark:text-slate-100">{participants.length}</strong> cầu thủ tham gia (không giới hạn)
+                </span>
+              </div>
+            </div>
 
-        {/* Tab Navigation Strip */}
-        <div className="flex items-center gap-2 pt-3 border-t border-slate-100 overflow-x-auto">
-          {[
-            { key: 'overview', label: 'Tổng quan', icon: 'dashboard' },
-            { key: 'spin', label: 'Vòng quay Đội trưởng', icon: 'casino' },
-            { key: 'pick', label: 'Chọn người (Pick)', icon: 'how_to_reg' },
-            { key: 'lineup', label: 'Sa bàn Lineup', icon: 'sports' },
-            { key: 'stats', label: 'Kết quả & Thống kê', icon: 'sports_score' },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold font-sans transition-all whitespace-nowrap cursor-pointer ${
-                activeTab === tab.key
-                  ? 'bg-red-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+            {user && (
+              <div>
+                {match.status === 'PENDING' ? (
+                  <Button
+                    size="md"
+                    variant={hasJoined ? 'danger' : 'primary'}
+                    leftIcon={hasJoined ? 'cancel' : 'how_to_reg'}
+                    onClick={handleJoinToggle}
+                  >
+                    {hasJoined ? 'Hủy tham gia' : 'Điểm danh tham gia'}
+                  </Button>
+                ) : (
+                  <span className="text-xs font-space text-slate-400 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">lock</span>
+                    Đã đóng điểm danh
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
 
-      {/* TAB 1: OVERVIEW */}
+          {/* Navigation Tabs */}
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+            <Tabs
+              tabs={[
+                { id: 'overview', label: '1. Điểm danh & Tổng quan', icon: 'groups' },
+                { id: 'spin', label: '2. Vòng quay Captain', icon: 'casino' },
+                { id: 'jersey', label: '3. Chọn áo đấu', icon: 'checkroom' },
+                { id: 'pick', label: '4. Pick quân (Roulette)', icon: 'how_to_reg' },
+                { id: 'trade', label: '5. Chuyển nhượng (Trade)', icon: 'swap_horiz' },
+                { id: 'lineup', label: '6. Sa bàn Lineup', icon: 'sports' },
+                { id: 'stats', label: '7. Thống kê cá nhân', icon: 'sports_score' },
+              ]}
+              activeTab={activeTab}
+              onChange={(t) => setActiveTab(t as any)}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* TAB 1: OVERVIEW (Step 1 Điểm danh) */}
       {activeTab === 'overview' && (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-5">
           <ScoreBoard
             scoreTeamA={match.scoreTeamA}
             scoreTeamB={match.scoreTeamB}
@@ -466,12 +570,19 @@ export const MatchDetailPage: React.FC = () => {
           {/* Participants List */}
           <Card elevation="level1">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-heading font-black text-lg text-slate-900">
-                Danh sách cầu thủ tham gia ({participants.length})
-              </h3>
-              <span className="text-xs font-mono text-slate-500">
-                Thể thức tiêu chuẩn: 7v7 (14 cầu thủ chính thức)
-              </span>
+              <div>
+                <h3 className="font-heading font-black text-lg text-slate-900 dark:text-white">
+                  Danh Sách Cầu Thủ Đã Điểm Danh ({participants.length})
+                </h3>
+                <p className="text-xs text-slate-500 font-mono mt-0.5">
+                  Không giới hạn số người tham gia • Đồng bộ realtime
+                </p>
+              </div>
+              {match.status === 'PENDING' && (
+                <Badge variant="live" size="sm" dot>
+                  Đang mở điểm danh
+                </Badge>
+              )}
             </div>
 
             {participants.length === 0 ? (
@@ -483,11 +594,11 @@ export const MatchDetailPage: React.FC = () => {
                 {participants.map((p) => (
                   <div
                     key={p.id}
-                    className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 shadow-xs"
+                    className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-xs"
                   >
                     <Avatar name={p.user.fullName} jerseyNumber={p.user.jerseyNumber} size="md" showNumber />
                     <div>
-                      <div className="font-heading font-black text-sm text-slate-900">
+                      <div className="font-heading font-black text-sm text-slate-900 dark:text-white">
                         {p.user.fullName}
                       </div>
                       <div className="flex items-center gap-1.5 mt-1">
@@ -505,11 +616,10 @@ export const MatchDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: SPIN WHEEL */}
+      {/* TAB 2: SPIN WHEEL (Captain Faceoff Spin) */}
       {activeTab === 'spin' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Wheel column */}
-          <div className="lg:col-span-6 flex flex-col items-center justify-center p-6 rounded-3xl bg-slate-50 border border-slate-200 shadow-xs">
+          <div className="lg:col-span-6 flex flex-col items-center justify-center p-6 rounded-3xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-xs">
             {hostAUser && hostBUser ? (
               <SpinWheel
                 hostA={hostAUser}
@@ -520,6 +630,7 @@ export const MatchDetailPage: React.FC = () => {
                 onSpinComplete={() => {
                   setIsSpinning(false);
                   fetchMatch();
+                  setActiveTab('jersey');
                 }}
               />
             ) : (
@@ -530,26 +641,37 @@ export const MatchDetailPage: React.FC = () => {
             )}
           </div>
 
-          {/* Captain setup & faceoff column */}
           <div className="lg:col-span-6 flex flex-col gap-4">
             {isAdmin() && !winnerUser && (
-              <Card elevation="level1">
-                <h4 className="font-heading font-black text-base text-slate-900 mb-3">
+              <Card elevation="level1" className="relative z-30">
+                <h4 className="font-heading font-black text-base text-slate-900 dark:text-white mb-3">
                   Chọn 2 Đội trưởng từ danh sách điểm danh
                 </h4>
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <Select
-                    label="Đội trưởng A (Tây Ban Nha)"
-                    options={[{ value: '', label: '-- Chọn đội trưởng A --' }, ...eligibleHosts]}
+                  <select
                     value={hostAId}
                     onChange={(e) => setHostAId(e.target.value)}
-                  />
-                  <Select
-                    label="Đội trưởng B (Pháp)"
-                    options={[{ value: '', label: '-- Chọn đội trưởng B --' }, ...eligibleHosts]}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-space"
+                  >
+                    <option value="">-- Đội trưởng A --</option>
+                    {eligibleHosts.map((h) => (
+                      <option key={h.value} value={h.value}>
+                        {h.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
                     value={hostBId}
                     onChange={(e) => setHostBId(e.target.value)}
-                  />
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-space"
+                  >
+                    <option value="">-- Đội trưởng B --</option>
+                    {eligibleHosts.map((h) => (
+                      <option key={h.value} value={h.value}>
+                        {h.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </Card>
             )}
@@ -566,9 +688,22 @@ export const MatchDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 3: TEAM PICK */}
+      {/* TAB 3: JERSEY SELECTION */}
+      {activeTab === 'jersey' && (
+        <JerseySelectionStep
+          match={match}
+          canSelect={canSelectJersey}
+          onJerseySelected={() => {
+            fetchMatch();
+            setActiveTab('pick');
+          }}
+        />
+      )}
+
+      {/* TAB 4: PICK LIST (Step 3: Pick quân) */}
       {activeTab === 'pick' && (
         <PickList
+          matchId={match.id}
           participants={participants}
           canPick={canPick}
           onPick={handlePickPlayer}
@@ -576,23 +711,35 @@ export const MatchDetailPage: React.FC = () => {
         />
       )}
 
-      {/* TAB 4: LINEUP BUILDER */}
+      {/* TAB 5: TRADE WINDOW (Step 4: Chuyển nhượng) */}
+      {activeTab === 'trade' && (
+        <TradeWindow
+          matchId={match.id}
+          participants={participants}
+          onTradeCompleted={fetchMatch}
+          onProceedToLineup={() => {
+            handleUpdateStatus('IN_PROGRESS');
+            setActiveTab('lineup');
+          }}
+        />
+      )}
+
+      {/* TAB 6: LINEUP BUILDER (Step 5: Sa bàn) */}
       {activeTab === 'lineup' && (
         <div className="flex flex-col gap-4">
-          {/* Lineup Controls */}
           <Card elevation="level1" className="flex flex-wrap items-center justify-between gap-3">
             {/* Team Toggle Pills */}
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl border border-slate-200">
+            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setActiveLineupTeam('A')}
                 className={`px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                   activeLineupTeam === 'A'
                     ? 'bg-[#DC2626] text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Đội A: {TEAM_A_NAME} (Đỏ)
+                Đội A: {TEAM_A_NAME} (Đỏ) {isCaptainA ? '(Đội của bạn)' : ''}
               </button>
               <button
                 type="button"
@@ -600,23 +747,38 @@ export const MatchDetailPage: React.FC = () => {
                 className={`px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                   activeLineupTeam === 'B'
                     ? 'bg-[#2563EB] text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Đội B: {TEAM_B_NAME} (Xanh)
+                Đội B: {TEAM_B_NAME} (Xanh) {isCaptainB ? '(Đội của bạn)' : ''}
               </button>
+            </div>
+
+            {/* Permissions note */}
+            <div className="text-xs font-space text-slate-500">
+              {canEditCurrentTeamLineup ? (
+                <span className="text-emerald-500 font-bold flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">edit</span>
+                  Bạn có quyền chỉnh sửa đội hình này
+                </span>
+              ) : (
+                <span className="text-slate-400 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">visibility</span>
+                  Chế độ xem sơ đồ (Chỉ Admin và Đội trưởng đội này mới được sửa)
+                </span>
+              )}
             </div>
 
             {/* Quick Actions */}
             <div className="flex items-center gap-2">
-              <FormationPreset
-                onSelectFormation={handleApplyPreset}
-              />
+              {canEditCurrentTeamLineup && (
+                <FormationPreset onSelectFormation={handleApplyPreset} />
+              )}
               <LineupExport
                 matchTitle={match.title}
                 targetElementId="football-pitch-canvas"
               />
-              {canSaveLineup && (
+              {canEditCurrentTeamLineup && (
                 <Button
                   size="sm"
                   variant="primary"
@@ -634,7 +796,7 @@ export const MatchDetailPage: React.FC = () => {
           <FootballPitch
             lineups={localLineups}
             activeTeam={activeLineupTeam}
-            isEditable={canSaveLineup}
+            isEditable={canEditCurrentTeamLineup}
             onUpdatePosition={handleUpdateLineupCoord}
             onUpdatePositionLabel={handleUpdatePositionLabel}
           />
@@ -647,16 +809,16 @@ export const MatchDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 5: STATS */}
+      {/* TAB 7: STATS */}
       {activeTab === 'stats' && (
         <Card elevation="level1">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div>
-              <h3 className="font-heading font-black text-lg text-slate-900">
-                Thống kê cá nhân trận đấu
+              <h3 className="font-heading font-black text-lg text-slate-900 dark:text-white">
+                Thống Kê Trận Đấu & Cầu Thủ
               </h3>
               <p className="text-xs text-slate-500 font-mono mt-0.5">
-                Admin nhập số bàn thắng, kiến tạo và MVP sau khi kết thúc trận
+                Admin nhập số bàn thắng, kiến tạo, cứu thua và MVP sau khi kết thúc trận
               </p>
             </div>
             {isAdmin() && (
@@ -673,33 +835,39 @@ export const MatchDetailPage: React.FC = () => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs font-space">
               <thead>
-                <tr className="border-b border-slate-200 font-mono font-bold text-slate-500 uppercase bg-slate-50/60">
+                <tr className="border-b border-slate-200 dark:border-slate-800 font-bold text-slate-500 uppercase bg-slate-50/60 dark:bg-slate-900/60">
                   <th className="py-2.5 px-3">Cầu thủ</th>
                   <th className="py-2.5 px-3">Đội</th>
                   <th className="py-2.5 px-3 text-center">Bàn thắng</th>
                   <th className="py-2.5 px-3 text-center">Kiến tạo</th>
+                  <th className="py-2.5 px-3 text-center">Cứu thua</th>
                   <th className="py-2.5 px-3 text-center">Cầu thủ xuất sắc (MVP)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {participants.map((p) => {
-                  const currentInput = playerStatsInputs[p.user.id] || { goals: 0, assists: 0, isMvp: false };
+                  const currentInput = playerStatsInputs[p.user.id] || {
+                    goals: 0,
+                    assists: 0,
+                    saves: 0,
+                    isMvp: false,
+                  };
 
                   return (
-                    <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
+                    <tr key={p.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/50 transition-colors">
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-2">
                           <Avatar name={p.user.fullName} jerseyNumber={p.user.jerseyNumber} size="sm" showNumber />
-                          <span className="font-bold text-slate-900">{p.user.fullName}</span>
+                          <span className="font-bold text-slate-900 dark:text-white">{p.user.fullName}</span>
                         </div>
                       </td>
                       <td className="py-3 px-3 font-mono font-bold">
                         {p.team === 'A' ? (
-                          <span className="text-red-600">Đội A (Đỏ)</span>
+                          <span className="text-red-500">Đội A (Đỏ)</span>
                         ) : p.team === 'B' ? (
-                          <span className="text-blue-600">Đội B (Xanh)</span>
+                          <span className="text-blue-500">Đội B (Xanh)</span>
                         ) : (
                           <span className="text-slate-500">Dự bị</span>
                         )}
@@ -709,20 +877,20 @@ export const MatchDetailPage: React.FC = () => {
                           <input
                             type="number"
                             min={0}
-                            className="w-16 px-2 py-1 rounded-xl bg-white border border-slate-300 text-center font-mono font-bold text-red-600 focus:outline-none focus:border-red-500"
+                            className="w-16 px-2 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-center font-mono font-bold text-red-500 focus:outline-none focus:border-red-500"
                             value={currentInput.goals}
                             onChange={(e) =>
                               setPlayerStatsInputs((prev) => ({
                                 ...prev,
                                 [p.user.id]: {
-                                   ...currentInput,
-                                   goals: Number(e.target.value),
+                                  ...currentInput,
+                                  goals: Number(e.target.value),
                                 },
                               }))
                             }
                           />
                         ) : (
-                          <span className="font-mono font-bold text-red-600">{currentInput.goals}</span>
+                          <span className="font-mono font-bold text-red-500">{currentInput.goals}</span>
                         )}
                       </td>
                       <td className="py-3 px-3 text-center">
@@ -730,7 +898,7 @@ export const MatchDetailPage: React.FC = () => {
                           <input
                             type="number"
                             min={0}
-                            className="w-16 px-2 py-1 rounded-xl bg-white border border-slate-300 text-center font-mono font-bold text-blue-600 focus:outline-none focus:border-blue-500"
+                            className="w-16 px-2 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-center font-mono font-bold text-blue-500 focus:outline-none focus:border-blue-500"
                             value={currentInput.assists}
                             onChange={(e) =>
                               setPlayerStatsInputs((prev) => ({
@@ -743,14 +911,35 @@ export const MatchDetailPage: React.FC = () => {
                             }
                           />
                         ) : (
-                          <span className="font-mono font-bold text-blue-600">{currentInput.assists}</span>
+                          <span className="font-mono font-bold text-blue-500">{currentInput.assists}</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        {isAdmin() ? (
+                          <input
+                            type="number"
+                            min={0}
+                            className="w-16 px-2 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-center font-mono font-bold text-emerald-500 focus:outline-none focus:border-emerald-500"
+                            value={currentInput.saves}
+                            onChange={(e) =>
+                              setPlayerStatsInputs((prev) => ({
+                                ...prev,
+                                [p.user.id]: {
+                                  ...currentInput,
+                                  saves: Number(e.target.value),
+                                },
+                              }))
+                            }
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-emerald-500">{currentInput.saves}</span>
                         )}
                       </td>
                       <td className="py-3 px-3 text-center">
                         {isAdmin() ? (
                           <input
                             type="checkbox"
-                            className="w-4 h-4 rounded text-amber-500 cursor-pointer accent-amber-500"
+                            className="w-4 h-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400"
                             checked={currentInput.isMvp}
                             onChange={(e) =>
                               setPlayerStatsInputs((prev) => ({
@@ -762,10 +951,8 @@ export const MatchDetailPage: React.FC = () => {
                               }))
                             }
                           />
-                        ) : currentInput.isMvp ? (
-                          <span className="text-amber-600 font-bold font-mono">★ MVP</span>
                         ) : (
-                          '—'
+                          <span className="font-bold text-amber-600 dark:text-amber-400">{currentInput.isMvp ? 'MVP' : '-'}</span>
                         )}
                       </td>
                     </tr>
@@ -777,35 +964,50 @@ export const MatchDetailPage: React.FC = () => {
         </Card>
       )}
 
-      {/* Modal Score Update */}
-      <Modal isOpen={isScoreModalOpen} onClose={() => setIsScoreModalOpen(false)} title="Cập nhật tỉ số trận đấu">
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label={`Bàn thắng Đội A (${TEAM_A_NAME})`}
-              type="number"
-              min={0}
-              value={scoreA}
-              onChange={(e) => setScoreA(Number(e.target.value))}
-            />
-            <Input
-              label={`Bàn thắng Đội B (${TEAM_B_NAME})`}
-              type="number"
-              min={0}
-              value={scoreB}
-              onChange={(e) => setScoreB(Number(e.target.value))}
-            />
-          </div>
-          <div className="flex justify-end gap-3 mt-4">
-            <Button variant="ghost" onClick={() => setIsScoreModalOpen(false)}>
-              Hủy
-            </Button>
-            <Button variant="primary" onClick={handleSaveScore}>
-              Lưu tỉ số
-            </Button>
-          </div>
+      {/* Score Modal */}
+      {isScoreModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <Card elevation="glass" glow className="max-w-md w-full p-6">
+            <h3 className="font-space font-black text-xl text-slate-900 dark:text-white mb-4">
+              Cập Nhật Tỉ Số Trận Đấu
+            </h3>
+            <div className="grid grid-cols-2 gap-4 mb-5">
+              <div>
+                <label className="block text-xs font-space font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Đội A ({TEAM_A_NAME})
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center font-space font-black text-xl text-rose-500"
+                  value={scoreA}
+                  onChange={(e) => setScoreA(Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-space font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Đội B ({TEAM_B_NAME})
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center font-space font-black text-xl text-blue-500"
+                  value={scoreB}
+                  onChange={(e) => setScoreB(Number(e.target.value))}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="secondary" onClick={() => setIsScoreModalOpen(false)}>
+                Hủy
+              </Button>
+              <Button variant="primary" onClick={handleSaveScore}>
+                Lưu Tỉ Số
+              </Button>
+            </div>
+          </Card>
         </div>
-      </Modal>
+      )}
     </div>
   );
 };

@@ -47,6 +47,7 @@ public class StatsService {
             stat.setTeam(item.getTeam());
             stat.setGoals(item.getGoals() != null ? item.getGoals() : 0);
             stat.setAssists(item.getAssists() != null ? item.getAssists() : 0);
+            stat.setSaves(item.getSaves() != null ? item.getSaves() : 0);
             stat.setIsWinner(Boolean.TRUE.equals(item.getIsWinner()));
             stat.setIsMvp(Boolean.TRUE.equals(item.getIsMvp()));
             stat.setEnteredBy(admin);

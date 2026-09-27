@@ -1,26 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { LeaderboardItem, User } from '../types';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { LeaderboardItem } from '../types';
 import { leaderboardService } from '../services/leaderboardService';
 import { useAuthStore } from '../store/authStore';
+import { Card, Badge, Avatar, Select } from '../ui';
 import toast from 'react-hot-toast';
-
-interface ScorerEntry {
-  id: string;
-  name: string;
-  team: string;
-  teamColor: string;
-  goals: number;
-  assists: number;
-}
-
-interface PendingPlayer {
-  id: string;
-  name: string;
-  initial: string;
-  colorClass: string;
-  position: string;
-  timeAgo: string;
-}
 
 interface EnrichedLeaderboardItem extends LeaderboardItem {
   position: string;
@@ -32,58 +16,13 @@ interface EnrichedLeaderboardItem extends LeaderboardItem {
 
 export const LeaderboardPage: React.FC = () => {
   const [items, setItems] = useState<EnrichedLeaderboardItem[]>([]);
-  const [sortMode, setSortMode] = useState<'goals' | 'assists' | 'winrate'>('goals');
+  const [sortMode, setSortMode] = useState<'goals' | 'assists' | 'winrate' | 'mvp'>('goals');
   const [season, setSeason] = useState('2025');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const { user } = useAuthStore();
 
-  // Match score widget state
-  const [scoreA, setScoreA] = useState(4);
-  const [scoreB, setScoreB] = useState(2);
-  const [selectedMvp, setSelectedMvp] = useState('hung_nguyen');
-  const [scorers, setScorers] = useState<ScorerEntry[]>([
-    { id: '1', name: 'Hoàng Minh', team: 'Team A', teamColor: 'bg-emerald-100 text-emerald-800', goals: 2, assists: 0 },
-    { id: '2', name: 'Hùng Nguyễn', team: 'Team A', teamColor: 'bg-emerald-100 text-emerald-800', goals: 1, assists: 1 },
-    { id: '3', name: 'Tuấn Chelsea', team: 'Team B', teamColor: 'bg-orange-100 text-orange-800', goals: 2, assists: 0 },
-  ]);
-
-  // AI Scout Commentary
-  const [aiRecap, setAiRecap] = useState<string>(
-    '“Trận đấu diễn ra cởi mở với màn rượt đuổi tỷ số kịch tính trong hiệp 1. Sang hiệp 2, tuyến giữa Team A hoàn toàn áp đảo nhờ sự năng nổ của Hùng Nguyễn và Hoàng Minh với 3 pha phối hợp bài bản, định đoạt trọn vẹn 3 điểm.”'
-  );
-
-  // Pending approval list
-  const [pendingList, setPendingList] = useState<PendingPlayer[]>([
-    {
-      id: 'p1',
-      name: 'Nguyễn Văn Đức',
-      initial: 'Đ',
-      colorClass: 'text-emerald-700',
-      position: 'CB/CDM',
-      timeAgo: 'Đăng ký 2h trước',
-    },
-    {
-      id: 'p2',
-      name: 'Lê Hoàng Long',
-      initial: 'L',
-      colorClass: 'text-blue-700',
-      position: 'RW/ST',
-      timeAgo: 'Đăng ký hôm qua',
-    },
-  ]);
-
-  // Role Setting Modal State
-  const [roleModalOpen, setRoleModalOpen] = useState(false);
-  const [targetPlayer, setTargetPlayer] = useState<{ name: string; role: 'ADMIN' | 'PLAYER' }>({
-    name: '',
-    role: 'PLAYER',
-  });
-  const [selectedRole, setSelectedRole] = useState<'ADMIN' | 'PLAYER'>('PLAYER');
-
-  const matchWidgetRef = useRef<HTMLDivElement>(null);
-  const pendingQueueRef = useRef<HTMLDivElement>(null);
-
-  // Sample seed data to ensure complete editorial showcase when backend has partial records
+  // Sample fallback seed data when backend has partial records
   const sampleRoster: EnrichedLeaderboardItem[] = [
     {
       rank: 1,
@@ -100,6 +39,10 @@ export const LeaderboardPage: React.FC = () => {
       totalGoals: 12,
       totalAssists: 4,
       totalWins: 11,
+      totalDraws: 1,
+      totalLosses: 2,
+      totalSaves: 0,
+      totalMvp: 3,
       winRate: 78.5,
       updatedAt: new Date().toISOString(),
       position: 'ST',
@@ -122,9 +65,13 @@ export const LeaderboardPage: React.FC = () => {
       totalGoals: 9,
       totalAssists: 8,
       totalWins: 10,
+      totalDraws: 2,
+      totalLosses: 2,
+      totalSaves: 5,
+      totalMvp: 4,
       winRate: 71.4,
       updatedAt: new Date().toISOString(),
-      position: 'BẠN',
+      position: 'CM',
       mvpCount: 4,
       form: ['W', 'W', 'L', 'W', 'W'],
       teamName: 'Team A (Tây Ban Nha)',
@@ -145,6 +92,10 @@ export const LeaderboardPage: React.FC = () => {
       totalGoals: 8,
       totalAssists: 6,
       totalWins: 8,
+      totalDraws: 2,
+      totalLosses: 3,
+      totalSaves: 0,
+      totalMvp: 2,
       winRate: 61.5,
       updatedAt: new Date().toISOString(),
       position: 'CM',
@@ -167,6 +118,10 @@ export const LeaderboardPage: React.FC = () => {
       totalGoals: 6,
       totalAssists: 7,
       totalWins: 7,
+      totalDraws: 2,
+      totalLosses: 3,
+      totalSaves: 0,
+      totalMvp: 1,
       winRate: 58.3,
       updatedAt: new Date().toISOString(),
       position: 'RW',
@@ -189,6 +144,10 @@ export const LeaderboardPage: React.FC = () => {
       totalGoals: 0,
       totalAssists: 2,
       totalWins: 10,
+      totalDraws: 1,
+      totalLosses: 3,
+      totalSaves: 24,
+      totalMvp: 3,
       winRate: 71.4,
       updatedAt: new Date().toISOString(),
       position: 'GK',
@@ -211,6 +170,10 @@ export const LeaderboardPage: React.FC = () => {
       totalGoals: 3,
       totalAssists: 3,
       totalWins: 6,
+      totalDraws: 1,
+      totalLosses: 4,
+      totalSaves: 0,
+      totalMvp: 0,
       winRate: 54.5,
       updatedAt: new Date().toISOString(),
       position: 'CB',
@@ -233,6 +196,10 @@ export const LeaderboardPage: React.FC = () => {
       totalGoals: 5,
       totalAssists: 2,
       totalWins: 4,
+      totalDraws: 2,
+      totalLosses: 4,
+      totalSaves: 0,
+      totalMvp: 1,
       winRate: 40.0,
       updatedAt: new Date().toISOString(),
       position: 'LW',
@@ -255,6 +222,10 @@ export const LeaderboardPage: React.FC = () => {
       totalGoals: 2,
       totalAssists: 4,
       totalWins: 4,
+      totalDraws: 3,
+      totalLosses: 5,
+      totalSaves: 0,
+      totalMvp: 0,
       winRate: 33.3,
       updatedAt: new Date().toISOString(),
       position: 'CDM',
@@ -264,19 +235,33 @@ export const LeaderboardPage: React.FC = () => {
     },
   ];
 
-  const fetchLeaderboard = async () => {
+  const sortItems = useCallback((data: EnrichedLeaderboardItem[], mode: 'goals' | 'assists' | 'winrate' | 'mvp') => {
+    const cloned = [...data];
+    if (mode === 'goals') {
+      cloned.sort((a, b) => b.totalGoals - a.totalGoals || b.totalAssists - a.totalAssists);
+    } else if (mode === 'assists') {
+      cloned.sort((a, b) => b.totalAssists - a.totalAssists || b.totalGoals - a.totalGoals);
+    } else if (mode === 'mvp') {
+      cloned.sort((a, b) => (b.totalMvp || b.mvpCount) - (a.totalMvp || a.mvpCount) || b.totalGoals - a.totalGoals);
+    } else {
+      cloned.sort((a, b) => b.winRate - a.winRate || b.totalWins - a.totalWins);
+    }
+    return cloned.map((item, index) => ({ ...item, rank: index + 1 }));
+  }, []);
+
+  const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
     try {
-      const type = sortMode === 'winrate' ? 'wins' : sortMode;
+      const type = sortMode === 'winrate' ? 'wins' : sortMode === 'mvp' ? 'goals' : sortMode;
       const res = await leaderboardService.getLeaderboard(type);
       if (res.success && res.data && res.data.length > 0) {
-        // Merge backend data with positions & form
         const enriched: EnrichedLeaderboardItem[] = res.data.map((item, idx) => {
           const matchedSample = sampleRoster.find((s) => s.user.username === item.user.username);
           return {
             ...item,
             position: matchedSample?.position || (idx === 0 ? 'ST' : idx === 1 ? 'CM' : 'CB'),
             mvpCount: matchedSample?.mvpCount ?? Math.max(0, Math.floor(item.totalGoals / 3)),
+            totalMvp: item.totalMvp ?? matchedSample?.mvpCount ?? 0,
             form: matchedSample?.form || ['W', 'W', 'W', 'L', 'W'],
             teamName: matchedSample?.teamName || (idx % 2 === 0 ? 'Team A (Tây Ban Nha)' : 'Team B (Pháp)'),
             isCurrentUser: user?.id === item.user.id,
@@ -291,864 +276,594 @@ export const LeaderboardPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const sortItems = (data: EnrichedLeaderboardItem[], mode: 'goals' | 'assists' | 'winrate') => {
-    const cloned = [...data];
-    if (mode === 'goals') {
-      cloned.sort((a, b) => b.totalGoals - a.totalGoals || b.totalAssists - a.totalAssists);
-    } else if (mode === 'assists') {
-      cloned.sort((a, b) => b.totalAssists - a.totalAssists || b.totalGoals - a.totalGoals);
-    } else {
-      cloned.sort((a, b) => b.winRate - a.winRate || b.totalWins - a.totalWins);
-    }
-    return cloned.map((item, index) => ({ ...item, rank: index + 1 }));
-  };
+  }, [sortMode, user, sortItems]);
 
   useEffect(() => {
     fetchLeaderboard();
-  }, [sortMode]);
+  }, [fetchLeaderboard]);
 
-  const handleSortChange = (mode: 'goals' | 'assists' | 'winrate') => {
+  const handleSortChange = (mode: 'goals' | 'assists' | 'winrate' | 'mvp') => {
     setSortMode(mode);
-    const label = mode === 'goals' ? 'Bàn thắng' : mode === 'assists' ? 'Kiến tạo' : 'Tỷ lệ thắng';
+    const label =
+      mode === 'goals'
+        ? 'Bàn thắng'
+        : mode === 'assists'
+        ? 'Kiến tạo'
+        : mode === 'mvp'
+        ? 'Điểm MVP'
+        : 'Tỷ lệ thắng';
     toast.success(`Đã sắp xếp BXH theo tiêu chí: ${label}`);
   };
 
-  const focusScoreInput = () => {
-    if (matchWidgetRef.current) {
-      matchWidgetRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      matchWidgetRef.current.classList.add('ring-2', 'ring-emerald-500');
-      setTimeout(() => {
-        matchWidgetRef.current?.classList.remove('ring-2', 'ring-emerald-500');
-      }, 1500);
-    }
-  };
-
-  const focusPendingQueue = () => {
-    if (pendingQueueRef.current) {
-      pendingQueueRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      pendingQueueRef.current.classList.add('ring-2', 'ring-amber-500');
-      setTimeout(() => {
-        pendingQueueRef.current?.classList.remove('ring-2', 'ring-amber-500');
-      }, 1500);
-    }
-  };
-
-  const handleAdjustScore = (team: 'A' | 'B', delta: number) => {
-    if (team === 'A') {
-      setScoreA((prev) => Math.max(0, prev + delta));
-    } else {
-      setScoreB((prev) => Math.max(0, prev + delta));
-    }
-  };
-
-  const handleAddScorer = () => {
-    const newEntry: ScorerEntry = {
-      id: Date.now().toString(),
-      name: 'Cầu thủ mới',
-      team: 'Team A',
-      teamColor: 'bg-emerald-100 text-emerald-800',
-      goals: 1,
-      assists: 0,
-    };
-    setScorers([...scorers, newEntry]);
-    toast('Đã thêm dòng ghi bàn mới', { icon: '⚽' });
-  };
-
-  const handleRemoveScorer = (id: string) => {
-    setScorers(scorers.filter((s) => s.id !== id));
-  };
-
-  const handleSubmitMatchResult = () => {
-    const mvpLabels: Record<string, string> = {
-      hung_nguyen: 'Hùng Nguyễn',
-      hoang_minh: 'Hoàng Minh',
-      tuan_chelsea: 'Tuấn Chelsea',
-      bao_trong: 'Bảo Trọng',
-    };
-    const mvpName = mvpLabels[selectedMvp] || 'Hùng Nguyễn';
-
-    toast.success(`Đã lưu tỉ số [${scoreA} - ${scoreB}] & cập nhật BXH thành công!`);
-    setAiRecap(
-      `“Kết thúc trận đấu với tỷ số ${scoreA}-${scoreB}. Điểm nhấn lớn nhất là phong độ chói sáng của ${mvpName}. Các dữ liệu bàn thắng và kiến tạo đã được đồng bộ vào hệ thống BXH chính thức.”`
+  // Filtered by Search Query
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return items;
+    const q = searchQuery.toLowerCase().trim();
+    return items.filter(
+      (item) =>
+        item.user.fullName.toLowerCase().includes(q) ||
+        item.user.username.toLowerCase().includes(q) ||
+        (item.user.jerseyNumber && item.user.jerseyNumber.toString().includes(q)) ||
+        item.position.toLowerCase().includes(q)
     );
-  };
+  }, [items, searchQuery]);
 
-  const handleResetScore = () => {
-    setScoreA(0);
-    setScoreB(0);
-    toast('Đã đặt lại tỉ số về 0-0', { icon: '🔄' });
-  };
+  // Aggregate Metrics
+  const topScorer = useMemo(() => {
+    if (items.length === 0) return null;
+    return [...items].sort((a, b) => b.totalGoals - a.totalGoals)[0];
+  }, [items]);
 
-  const handleRegenerateAiRecap = () => {
-    setAiRecap(
-      '“Phân tích thông số chuyên sâu: Khả năng chuyển đổi cơ hội của Team A đạt mức ấn tượng 44%. Hàng thủ Team B chịu áp lực lớn ở 15 phút cuối hiệp 2 sau các pha bứt tốc bên cánh trái.”'
-    );
-    toast.success('Đã làm mới báo cáo chiến thuật AI!');
-  };
+  const topAssister = useMemo(() => {
+    if (items.length === 0) return null;
+    return [...items].sort((a, b) => b.totalAssists - a.totalAssists)[0];
+  }, [items]);
 
-  const handleApprovePlayer = (id: string, name: string) => {
-    setPendingList(pendingList.filter((p) => p.id !== id));
-    toast.success(`Đã duyệt thành công ${name} vào danh sách thi đấu!`);
-  };
+  const topWinner = useMemo(() => {
+    if (items.length === 0) return null;
+    return [...items].sort((a, b) => b.winRate - a.winRate || b.totalWins - a.totalWins)[0];
+  }, [items]);
 
-  const handleRejectPlayer = (id: string, name: string) => {
-    setPendingList(pendingList.filter((p) => p.id !== id));
-    toast(`Đã từ chối đăng ký của ${name}.`, { icon: '❌' });
-  };
+  const totalGoalsLeague = useMemo(() => {
+    return items.reduce((acc, curr) => acc + (curr.totalGoals || 0), 0);
+  }, [items]);
 
-  const openPlayerRoleModal = (name: string, currentRole: 'ADMIN' | 'PLAYER') => {
-    setTargetPlayer({ name, role: currentRole });
-    setSelectedRole(currentRole);
-    setRoleModalOpen(true);
-  };
+  const totalMatchesLeague = useMemo(() => {
+    return Math.max(14, ...items.map((i) => i.totalMatches || 0));
+  }, [items]);
 
-  const savePlayerRole = () => {
-    setRoleModalOpen(false);
-    toast.success(`Đã lưu thay đổi phân quyền cho cầu thủ ${targetPlayer.name}! (${selectedRole})`);
-  };
+  const avgGoalsPerMatch = useMemo(() => {
+    return totalMatchesLeague > 0 ? (totalGoalsLeague / totalMatchesLeague).toFixed(2) : '0.00';
+  }, [totalGoalsLeague, totalMatchesLeague]);
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto">
-      {/* Top Header Summary Card: Premier League Clean Style */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              Live Standings
-            </span>
-            <span className="text-xs text-slate-400 font-medium">
-              Vòng đấu #14 • Sân cỏ nhân tạo D3 Bình Thạnh
-            </span>
-          </div>
-          <h1 className="font-headline font-black text-2xl lg:text-3xl text-slate-900 tracking-tight">
-            Bảng Xếp Hạng Mùa Giải <span className="text-emerald-600 font-extrabold">{season}</span>
-          </h1>
-          <p className="text-xs lg:text-sm text-slate-500 max-w-2xl">
-            Theo dõi bàn thắng, kiến tạo, tỷ lệ thắng và điểm thưởng MVP độc quyền giải phong trào Saigon Sunday League.
-          </p>
-        </div>
-
-        {/* Season Picker & Primary Quick Actions */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shadow-2xs">
-            <span className="material-symbols-outlined text-slate-400 text-base mr-1.5">calendar_today</span>
-            <select
-              value={season}
-              onChange={(e) => {
-                setSeason(e.target.value);
-                toast(`Đã chọn ${e.target.value}`, { icon: '📅' });
-              }}
-              className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer pr-1"
-            >
-              <option value="2025">Mùa giải 2025 (Hiện tại)</option>
-              <option value="2024">Mùa giải 2024 (Lưu trữ)</option>
-              <option value="Cup 2025">Hè Cup 2025</option>
-            </select>
-          </div>
-
-          <button
-            type="button"
-            onClick={focusScoreInput}
-            className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-2 rounded-lg shadow-2xs transition-colors cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-base">sports_score</span>
-            <span>Nhập Tỉ Số Trận</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={focusPendingQueue}
-            className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs px-3 py-2 rounded-lg shadow-2xs transition-colors cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-base text-slate-500">person_add</span>
-            <span>Duyệt mới</span>
-            {pendingList.length > 0 && (
-              <span className="w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
-                {pendingList.length}
+    <div className="flex flex-col gap-6 max-w-7xl mx-auto font-sans pb-10">
+      {/* 1. Top Header Banner */}
+      <Card
+        elevation="glass"
+        glow
+        className="p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs"
+      >
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <Badge variant="primary" dot size="sm">
+                Live Standings
+              </Badge>
+              <span className="text-xs text-slate-500 font-space font-medium">
+                Saigon Sunday League · Mùa {season}
               </span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Quick KPI Metric Cards Bar (3 cards) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Metric 1 */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Tổng Bàn Thắng Giải
-            </span>
-            <div className="flex items-baseline gap-1.5 mt-1">
-              <span className="font-headline font-black text-2xl text-slate-900">74</span>
-              <span className="text-xs text-slate-400">bàn / 14 vòng</span>
             </div>
-            <span className="text-[11px] text-emerald-600 font-medium mt-1">
-              ↑ 12% so với mùa trước
-            </span>
+            <h1 className="font-space font-black text-2xl sm:text-3xl text-slate-950 dark:text-white tracking-tight">
+              Bảng Xếp Hạng Câu Lạc Bộ
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-2xl font-space">
+              Theo dõi bảng phong độ, bàn thắng, kiến tạo, điểm số và hiệu suất thi đấu cá nhân qua từng vòng đấu.
+            </p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <span className="material-symbols-outlined text-xl">sports_soccer</span>
-          </div>
-        </div>
 
-        {/* Metric 2 */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Hiệu Suất Trung Bình
-            </span>
-            <div className="flex items-baseline gap-1.5 mt-1">
-              <span className="font-headline font-black text-2xl text-slate-900">5.28</span>
-              <span className="text-xs text-slate-400">bàn / trận</span>
+          {/* Season Selector */}
+          <div className="flex items-center gap-3">
+            <div className="w-52">
+              <Select
+                options={[
+                  { value: '2025', label: 'Mùa 2025 (Hiện tại)', icon: 'calendar_today' },
+                  { value: '2024', label: 'Mùa 2024 (Lưu trữ)', icon: 'history' },
+                  { value: 'Cup 2025', label: 'Hè Cup 2025', icon: 'military_tech' },
+                ]}
+                value={season}
+                onChange={(e) => {
+                  setSeason(e.target.value);
+                  toast.success(`Đã chuyển sang ${e.target.value}`);
+                }}
+              />
             </div>
-            <span className="text-[11px] text-slate-500 font-medium mt-1">
-              Trận đấu cởi mở, fair-play
-            </span>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-            <span className="material-symbols-outlined text-xl">analytics</span>
           </div>
         </div>
+      </Card>
 
-        {/* Metric 3 */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Chỉ Số Fair-Play
+      {/* 2. Basic Aggregate Statistics Strip (4 Bento Cards) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Top Scorer Card */}
+        <Card
+          elevation="level1"
+          className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between group hover:border-red-400 transition-all"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold uppercase text-red-600 dark:text-red-400 tracking-wider flex items-center gap-1.5 font-space">
+              <span className="material-symbols-outlined text-lg">sports_soccer</span>
+              Vua Phá Lưới
             </span>
-            <div className="flex items-center gap-3 mt-1.5">
-              <div className="flex items-center gap-1">
-                <span className="w-2.5 h-3.5 bg-amber-400 rounded-xs" />
-                <span className="text-sm font-bold text-slate-800">18</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="w-2.5 h-3.5 bg-rose-500 rounded-xs" />
-                <span className="text-sm font-bold text-slate-800">2</span>
-              </div>
-            </div>
-            <span className="text-[11px] text-slate-400 mt-1">
-              Tỷ lệ thẻ thấp top đầu giải
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 font-mono">
+              #1 BÀN THẮNG
             </span>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-            <span className="material-symbols-outlined text-xl">verified</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Two-Column Tactical Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN: Main Standings Leaderboard (7 cols) */}
-        <section className="lg:col-span-7 flex flex-col gap-4">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
-            {/* Card Sub-Header & Sort Segment Controls */}
-            <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-600 text-lg">
-                  format_list_numbered
-                </span>
-                <h2 className="font-headline font-bold text-base text-slate-900">
-                  Bảng Xếp Hạng Cá Nhân
-                </h2>
-                <span className="text-xs font-medium text-slate-400">· {items.length} cầu thủ</span>
-              </div>
-
-              {/* Segment Control (FotMob Style) */}
-              <div className="inline-flex p-1 bg-slate-100 rounded-lg text-xs font-medium text-slate-600">
-                <button
-                  type="button"
-                  onClick={() => handleSortChange('goals')}
-                  className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                    sortMode === 'goals'
-                      ? 'bg-white text-slate-900 font-semibold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+          {topScorer ? (
+            <div className="flex items-center gap-3.5">
+              <Avatar
+                name={topScorer.user.fullName}
+                jerseyNumber={topScorer.user.jerseyNumber}
+                size="md"
+                showNumber
+                bgColor="#DC2626"
+              />
+              <div className="min-w-0">
+                <Link
+                  to={`/players/${topScorer.user.id}`}
+                  className="font-space font-bold text-sm text-slate-950 dark:text-white truncate block hover:text-red-600 transition-colors"
                 >
-                  Bàn Thắng (G)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSortChange('assists')}
-                  className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                    sortMode === 'assists'
-                      ? 'bg-white text-slate-900 font-semibold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Kiến Tạo (A)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSortChange('winrate')}
-                  className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                    sortMode === 'winrate'
-                      ? 'bg-white text-slate-900 font-semibold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Tỷ Lệ Thắng
-                </button>
-              </div>
-            </div>
-
-            {/* Standings Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="py-2.5 px-3 w-10 text-center">#</th>
-                    <th className="py-2.5 px-3">Cầu Thủ</th>
-                    <th className="py-2.5 px-2 text-center" title="Số trận thi đấu">Trận</th>
-                    <th className="py-2.5 px-2 text-center text-slate-900" title="Bàn thắng">G</th>
-                    <th className="py-2.5 px-2 text-center" title="Kiến tạo">A</th>
-                    <th className="py-2.5 px-2 text-center" title="Điểm MVP">MVP</th>
-                    <th className="py-2.5 px-3 text-center">5 Trận Gần Nhất</th>
-                    <th className="py-2.5 px-3 text-right">Tỷ Lệ</th>
-                    <th className="py-2.5 px-2 text-center w-8">
-                      <span className="sr-only">Hành động</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={9} className="py-8 text-center text-slate-400">
-                        Đang tải bảng xếp hạng...
-                      </td>
-                    </tr>
-                  ) : (
-                    items.map((item) => (
-                      <tr
-                        key={item.user.id}
-                        className={`hover:bg-slate-50/80 transition-colors group ${
-                          item.isCurrentUser ? 'bg-emerald-50/30' : ''
-                        }`}
-                      >
-                        {/* Rank Pill */}
-                        <td className="py-3 px-3 text-center">
-                          {item.rank === 1 ? (
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-bold text-xs">
-                              1
-                            </span>
-                          ) : item.rank === 2 ? (
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs">
-                              2
-                            </span>
-                          ) : item.rank === 3 ? (
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-orange-50 text-orange-800 border border-orange-200 font-bold text-xs">
-                              3
-                            </span>
-                          ) : (
-                            <span className="font-semibold text-slate-500">
-                              {item.rank}
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Player Profile */}
-                        <td className="py-3 px-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="relative w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center shrink-0 border border-slate-200">
-                              {item.user.fullName.charAt(0)}
-                            </div>
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-bold text-slate-900 text-sm">
-                                  {item.user.fullName}
-                                </span>
-                                {item.isCurrentUser && (
-                                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold px-1 rounded">
-                                    BẠN
-                                  </span>
-                                )}
-                                {item.user.role === 'ADMIN' && (
-                                  <span className="bg-slate-200 text-slate-700 text-[9px] font-medium px-1 rounded uppercase">
-                                    ADMIN
-                                  </span>
-                                )}
-                                <span className="bg-slate-100 text-slate-700 text-[10px] font-semibold px-1 rounded">
-                                  {item.position}
-                                </span>
-                              </div>
-                              <span className="text-[11px] text-slate-400">
-                                {item.teamName} · #{item.user.jerseyNumber || '—'}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Match Count */}
-                        <td className="py-3 px-2 text-center font-medium text-slate-600">
-                          {item.totalMatches}
-                        </td>
-
-                        {/* Goals */}
-                        <td className="py-3 px-2 text-center font-bold text-slate-900 text-sm">
-                          {item.totalGoals}
-                        </td>
-
-                        {/* Assists */}
-                        <td className="py-3 px-2 text-center font-medium text-slate-600">
-                          {item.totalAssists}
-                        </td>
-
-                        {/* MVP Points */}
-                        <td className="py-3 px-2 text-center font-semibold text-amber-700">
-                          ★ {item.mvpCount}
-                        </td>
-
-                        {/* Form Guide (5 pills) */}
-                        <td className="py-3 px-3 text-center">
-                          <div className="inline-flex items-center gap-1">
-                            {item.form.map((res, fIdx) => (
-                              <span
-                                key={fIdx}
-                                className={`w-4 h-4 rounded-full text-white text-[9px] font-bold flex items-center justify-center ${
-                                  res === 'W'
-                                    ? 'bg-emerald-600'
-                                    : res === 'D'
-                                    ? 'bg-slate-400'
-                                    : 'bg-rose-500'
-                                }`}
-                                title={res === 'W' ? 'Thắng' : res === 'D' ? 'Hòa' : 'Thua'}
-                              >
-                                {res}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-
-                        {/* Win Rate */}
-                        <td className="py-3 px-3 text-right font-semibold text-emerald-700">
-                          {item.winRate}%
-                        </td>
-
-                        {/* Action Menu */}
-                        <td className="py-3 px-2 text-center">
-                          <button
-                            type="button"
-                            onClick={() => openPlayerRoleModal(item.user.fullName, item.user.role)}
-                            title="Thiết lập quyền"
-                            className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined text-base">
-                              {item.user.role === 'ADMIN' ? 'verified_user' : 'more_vert'}
-                            </span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Table Footer */}
-            <div className="px-4 py-3 bg-slate-50/70 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-              <span className="flex items-center gap-1.5 font-medium">
-                <span className="material-symbols-outlined text-emerald-600 text-sm">verified</span>
-                Dữ liệu ghi nhận tự động sau mỗi lượt đấu
-              </span>
-              <button
-                type="button"
-                onClick={() => toast(`Tổng cộng ${items.length} cầu thủ đã tham gia thi đấu`, { icon: '📊' })}
-                className="text-emerald-700 hover:text-emerald-800 font-semibold inline-flex items-center gap-1 cursor-pointer"
-              >
-                Xem đầy đủ {items.length} cầu thủ <span className="material-symbols-outlined text-xs">arrow_forward</span>
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* RIGHT COLUMN: Match Score Entry, AI Scout Notes & Pending Approvals (5 cols) */}
-        <aside className="lg:col-span-5 flex flex-col gap-5">
-          {/* CARD 1: Modern Match Scoreboard & Goal Entry */}
-          <div
-            ref={matchWidgetRef}
-            id="matchEntryWidget"
-            className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs flex flex-col gap-4 transition-all duration-300"
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-600 text-xl">
-                  sports_and_outdoors
-                </span>
-                <div className="flex flex-col">
-                  <h3 className="font-headline font-bold text-sm text-slate-900">
-                    Cập Nhật Tỉ Số Trận Đấu
-                  </h3>
-                  <span className="text-[11px] text-slate-400">
-                    Vòng 14 · Giao hữu nội bộ cuối tuần
+                  {topScorer.user.fullName}
+                </Link>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="font-space font-black text-2xl text-slate-950 dark:text-white">
+                    {topScorer.totalGoals}
+                  </span>
+                  <span className="text-xs font-medium text-slate-600 dark:text-slate-400 font-space">
+                    bàn / {topScorer.totalMatches} trận
                   </span>
                 </div>
               </div>
-              <span className="text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
-                Sân 7 người
-              </span>
             </div>
+          ) : (
+            <p className="text-xs text-slate-400 italic py-2">Chưa có dữ liệu</p>
+          )}
+        </Card>
 
-            {/* Scoreboard Steppers */}
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-center justify-around">
-              {/* Team A */}
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-xs font-bold text-slate-800">Team A (Đỏ)</span>
-                <span className="text-[10px] text-slate-400">Tây Ban Nha</span>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleAdjustScore('A', -1)}
-                    className="w-7 h-7 rounded-md bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-base transition-colors cursor-pointer"
-                  >
-                    -
-                  </button>
-                  <input
-                    type="number"
-                    min={0}
-                    value={scoreA}
-                    onChange={(e) => setScoreA(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="w-12 h-11 bg-white border border-slate-300 text-center font-headline font-black text-2xl text-slate-900 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleAdjustScore('A', 1)}
-                    className="w-7 h-7 rounded-md bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-base transition-colors cursor-pointer"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Match status center */}
-              <div className="flex flex-col items-center">
-                <span className="font-headline font-bold text-slate-300 text-xl tracking-widest">:</span>
-                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase mt-1">
-                  FT 90'
-                </span>
-              </div>
-
-              {/* Team B */}
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-xs font-bold text-slate-800">Team B (Xanh)</span>
-                <span className="text-[10px] text-slate-400">Pháp</span>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleAdjustScore('B', -1)}
-                    className="w-7 h-7 rounded-md bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-base transition-colors cursor-pointer"
-                  >
-                    -
-                  </button>
-                  <input
-                    type="number"
-                    min={0}
-                    value={scoreB}
-                    onChange={(e) => setScoreB(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="w-12 h-11 bg-white border border-slate-300 text-center font-headline font-black text-2xl text-slate-900 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleAdjustScore('B', 1)}
-                    className="w-7 h-7 rounded-md bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-base transition-colors cursor-pointer"
-                  >
-                    +
-                  </button>
+        {/* Top Assister Card */}
+        <Card
+          elevation="level1"
+          className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between group hover:border-blue-400 transition-all"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold uppercase text-blue-600 dark:text-blue-400 tracking-wider flex items-center gap-1.5 font-space">
+              <span className="material-symbols-outlined text-lg">assistant_direction</span>
+              Vua Kiến Tạo
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-mono">
+              #1 KIẾN TẠO
+            </span>
+          </div>
+          {topAssister ? (
+            <div className="flex items-center gap-3.5">
+              <Avatar
+                name={topAssister.user.fullName}
+                jerseyNumber={topAssister.user.jerseyNumber}
+                size="md"
+                showNumber
+                bgColor="#2563EB"
+              />
+              <div className="min-w-0">
+                <Link
+                  to={`/players/${topAssister.user.id}`}
+                  className="font-space font-bold text-sm text-slate-950 dark:text-white truncate block hover:text-blue-600 transition-colors"
+                >
+                  {topAssister.user.fullName}
+                </Link>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="font-space font-black text-2xl text-slate-950 dark:text-white">
+                    {topAssister.totalAssists}
+                  </span>
+                  <span className="text-xs font-medium text-slate-600 dark:text-slate-400 font-space">
+                    kiến tạo
+                  </span>
                 </div>
               </div>
             </div>
+          ) : (
+            <p className="text-xs text-slate-400 italic py-2">Chưa có dữ liệu</p>
+          )}
+        </Card>
 
-            {/* Goal Scorers List */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                  Cầu Thủ Ghi Bàn & Kiến Tạo
-                </label>
-                <button
-                  type="button"
-                  onClick={handleAddScorer}
-                  className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center gap-0.5 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-xs">add</span> Thêm người
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                {scorers.map((s) => (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between bg-slate-50 border border-slate-200/80 px-3 py-2 rounded-lg text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-800">{s.name}</span>
-                      <span className={`text-[10px] font-medium px-1 rounded ${s.teamColor}`}>
-                        {s.team}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-slate-600 font-medium">
-                      <span>⚽ {s.goals} bàn</span>
-                      <span className="text-slate-400">·</span>
-                      <span className={s.assists > 0 ? 'text-emerald-700' : 'text-slate-500'}>
-                        👟 {s.assists} KT
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveScorer(s.id)}
-                        className="text-slate-400 hover:text-rose-500 ml-1 transition-colors cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined text-sm">close</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* MVP Selection */}
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="mvpSelect" className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                <span className="material-symbols-outlined text-amber-500 text-sm">star</span>
-                Cầu Thủ Xuất Sắc Nhất (MVP)
-              </label>
-              <div className="relative">
-                <select
-                  id="mvpSelect"
-                  value={selectedMvp}
-                  onChange={(e) => setSelectedMvp(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-medium p-2.5 rounded-lg appearance-none focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer pr-8"
-                >
-                  <option value="hung_nguyen">
-                    ★ Hùng Nguyễn (Đội trưởng A - 1 bàn, 1 kiến tạo, 6 cản phá)
-                  </option>
-                  <option value="hoang_minh">
-                    ★ Hoàng Minh (Tiền đạo A - 2 bàn mở tỉ số)
-                  </option>
-                  <option value="tuan_chelsea">
-                    ★ Tuấn Chelsea (Tiền vệ B - 2 bàn sút xa)
-                  </option>
-                  <option value="bao_trong">
-                    ★ Bảo Trọng (Thủ môn A - cản phá penalty phút 75)
-                  </option>
-                </select>
-                <span className="material-symbols-outlined absolute right-2.5 top-2.5 text-slate-400 text-base pointer-events-none">
-                  expand_more
-                </span>
-              </div>
-            </div>
-
-            {/* Submit Actions */}
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                type="button"
-                onClick={handleSubmitMatchResult}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs py-2.5 px-3 rounded-lg shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-base">check</span>
-                <span>Lưu & Cập Nhật BXH</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleResetScore}
-                className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-medium text-xs py-2.5 px-3 rounded-lg transition-colors cursor-pointer"
-              >
-                Đặt lại
-              </button>
-            </div>
+        {/* Top Winner Card */}
+        <Card
+          elevation="level1"
+          className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between group hover:border-amber-400 transition-all"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold uppercase text-amber-700 dark:text-amber-400 tracking-wider flex items-center gap-1.5 font-space">
+              <span className="material-symbols-outlined text-lg">military_tech</span>
+              Vua Chiến Thắng
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-mono">
+              #1 TỶ LỆ THẮNG
+            </span>
           </div>
-
-          {/* CARD 2: Editorial Match Scout Notes (AI Recap) */}
-          <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-4 shadow-2xs flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-blue-700 text-base">article</span>
-                <span className="text-xs font-bold uppercase tracking-wider text-blue-900">
-                  Bình Luận Chuyên Môn Trận Đấu
-                </span>
+          {topWinner ? (
+            <div className="flex items-center gap-3.5">
+              <Avatar
+                name={topWinner.user.fullName}
+                jerseyNumber={topWinner.user.jerseyNumber}
+                size="md"
+                showNumber
+                bgColor="#D97706"
+              />
+              <div className="min-w-0">
+                <Link
+                  to={`/players/${topWinner.user.id}`}
+                  className="font-space font-bold text-sm text-slate-950 dark:text-white truncate block hover:text-amber-600 transition-colors"
+                >
+                  {topWinner.user.fullName}
+                </Link>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="font-space font-black text-2xl text-emerald-600 dark:text-emerald-400">
+                    {topWinner.winRate}%
+                  </span>
+                  <span className="text-xs font-medium text-slate-600 dark:text-slate-400 font-space">
+                    ({topWinner.totalWins} trận thắng)
+                  </span>
+                </div>
               </div>
-              <span className="text-[10px] font-medium text-blue-700 bg-blue-100/60 px-1.5 py-0.5 rounded">
-                Scout Analysis
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400 italic py-2">Chưa có dữ liệu</p>
+          )}
+        </Card>
+
+        {/* League Aggregate Overview Card */}
+        <Card
+          elevation="level1"
+          className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold uppercase text-emerald-700 dark:text-emerald-400 tracking-wider flex items-center gap-1.5 font-space">
+              <span className="material-symbols-outlined text-lg">analytics</span>
+              Thống Kê Giải
+            </span>
+            <Badge variant="primary" size="sm">
+              {items.length} Cầu thủ
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-center">
+            <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+              <span className="text-[11px] font-space font-bold text-slate-600 dark:text-slate-400 block">
+                Tổng Bàn Thắng
+              </span>
+              <span className="font-space font-black text-xl text-slate-950 dark:text-white">
+                {totalGoalsLeague}
               </span>
             </div>
-            <p className="text-xs text-slate-700 leading-relaxed italic bg-white/70 p-3 rounded-lg border border-blue-100/80">
-              {aiRecap}
-            </p>
-            <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                Tỷ lệ kiểm soát bóng: 58% - 42%
+            <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+              <span className="text-[11px] font-space font-bold text-slate-600 dark:text-slate-400 block">
+                Bàn / Trận
               </span>
-              <button
-                type="button"
-                onClick={handleRegenerateAiRecap}
-                className="text-blue-700 hover:underline font-semibold inline-flex items-center gap-0.5 cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-xs">refresh</span> Phân tích lại
-              </button>
+              <span className="font-space font-black text-xl text-slate-950 dark:text-white">
+                {avgGoalsPerMatch}
+              </span>
             </div>
           </div>
+        </Card>
+      </div>
 
-          {/* CARD 3: Pending Member Approvals */}
-          <div
-            ref={pendingQueueRef}
-            id="pendingQueue"
-            className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs flex flex-col gap-3 transition-all duration-300"
-          >
-            <div className="flex items-center justify-between">
+      {/* 3. Full-Width Standings Table */}
+      <Card
+        elevation="level1"
+        className="p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs"
+      >
+        {/* Table Top Toolbar */}
+        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold">
+              <span className="material-symbols-outlined text-xl">leaderboard</span>
+            </div>
+            <div>
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-slate-600 text-lg">how_to_reg</span>
-                <h4 className="font-headline font-bold text-sm text-slate-900">
-                  Chờ Duyệt Tham Gia
-                </h4>
+                <h2 className="font-space font-black text-lg text-slate-950 dark:text-white">
+                  Bảng Xếp Hạng Chi Tiết
+                </h2>
+                <Badge variant="neutral" size="sm">
+                  {filteredItems.length} cầu thủ
+                </Badge>
               </div>
-              <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                {pendingList.length} yêu cầu
+              <p className="text-xs text-slate-500 font-space mt-0.5">
+                Điểm số và chỉ số thi đấu đồng bộ tự động sau mỗi lượt trận
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search Input */}
+            <div className="relative flex items-center">
+              <span className="material-symbols-outlined absolute left-3 text-slate-400 text-sm pointer-events-none">
+                search
               </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm cầu thủ, số áo, vị trí..."
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-950 dark:text-slate-100 placeholder:text-slate-400 text-xs rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 w-48 sm:w-60 font-space transition-all"
+              />
             </div>
 
-            <div className="flex flex-col gap-2">
-              {pendingList.length === 0 ? (
-                <div className="text-xs text-slate-400 italic text-center py-4">
-                  Không còn yêu cầu nào đang chờ duyệt
-                </div>
+            {/* Filter Tabs */}
+            <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-space font-bold text-slate-600 dark:text-slate-400">
+              <button
+                type="button"
+                onClick={() => handleSortChange('goals')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  sortMode === 'goals'
+                    ? 'bg-white dark:bg-slate-700 text-slate-950 dark:text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
+                }`}
+              >
+                Bàn Thắng (G)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSortChange('assists')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  sortMode === 'assists'
+                    ? 'bg-white dark:bg-slate-700 text-slate-950 dark:text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
+                }`}
+              >
+                Kiến Tạo (A)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSortChange('winrate')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  sortMode === 'winrate'
+                    ? 'bg-white dark:bg-slate-700 text-slate-950 dark:text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
+                }`}
+              >
+                Tỷ Lệ Thắng (%)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSortChange('mvp')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  sortMode === 'mvp'
+                    ? 'bg-white dark:bg-slate-700 text-slate-950 dark:text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
+                }`}
+              >
+                Điểm MVP
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Table Content */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse font-space">
+            <thead>
+              <tr className="bg-slate-50/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                <th className="py-3 px-4 w-12 text-center">#</th>
+                <th className="py-3 px-4 min-w-[200px]">Cầu Thủ</th>
+                <th className="py-3 px-3 text-center">Vị Trí</th>
+                <th className="py-3 px-3 text-center" title="Số trận thi đấu">
+                  Trận
+                </th>
+                <th className="py-3 px-3 text-center text-emerald-600 font-bold" title="Trận Thắng">
+                  T
+                </th>
+                <th className="py-3 px-3 text-center text-slate-500 font-bold" title="Trận Hòa">
+                  H
+                </th>
+                <th className="py-3 px-3 text-center text-rose-500 font-bold" title="Trận Thua">
+                  B
+                </th>
+                <th
+                  className="py-3 px-3 text-center text-slate-950 dark:text-white font-extrabold"
+                  title="Bàn Thắng (Goals)"
+                >
+                  G
+                </th>
+                <th className="py-3 px-3 text-center text-blue-600 font-bold" title="Kiến Tạo (Assists)">
+                  A
+                </th>
+                <th className="py-3 px-3 text-center text-teal-600 font-bold" title="Cứu Thua (Saves)">
+                  S
+                </th>
+                <th className="py-3 px-3 text-center text-amber-600 font-bold" title="Số lần xuất sắc nhất trận">
+                  MVP
+                </th>
+                <th className="py-3 px-4 text-center min-w-[120px]">5 Trận Gần Nhất</th>
+                <th className="py-3 px-4 text-right min-w-[140px]">Tỷ Lệ Thắng</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+              {loading ? (
+                <tr>
+                  <td colSpan={13} className="py-16 text-center text-slate-400 font-space">
+                    <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                    Đang tải dữ liệu bảng xếp hạng...
+                  </td>
+                </tr>
+              ) : filteredItems.length === 0 ? (
+                <tr>
+                  <td colSpan={13} className="py-16 text-center text-slate-400 italic font-space">
+                    Không tìm thấy cầu thủ nào phù hợp với tìm kiếm
+                  </td>
+                </tr>
               ) : (
-                pendingList.map((p) => (
-                  <div
-                    key={p.id}
-                    className="bg-slate-50 border border-slate-200/80 p-2.5 rounded-lg flex items-center justify-between gap-2"
+                filteredItems.map((item) => (
+                  <tr
+                    key={item.user.id}
+                    className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors group ${
+                      item.isCurrentUser ? 'bg-emerald-50/40 dark:bg-emerald-950/20' : ''
+                    }`}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <div className={`w-8 h-8 rounded-full bg-white border border-slate-200 font-bold text-xs flex items-center justify-center shrink-0 ${p.colorClass}`}>
-                        {p.initial}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-xs text-slate-800">{p.name}</span>
-                        <span className="text-[10px] text-slate-400">
-                          Vị trí: {p.position} · {p.timeAgo}
+                    {/* Rank Badge */}
+                    <td className="py-3.5 px-4 text-center">
+                      {item.rank === 1 ? (
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 font-black text-xs shadow-xs">
+                          1
                         </span>
+                      ) : item.rank === 2 ? (
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-black text-xs shadow-xs">
+                          2
+                        </span>
+                      ) : item.rank === 3 ? (
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-orange-100 dark:bg-orange-900/60 text-orange-800 dark:text-orange-300 border border-orange-300 dark:border-orange-700 font-black text-xs shadow-xs">
+                          3
+                        </span>
+                      ) : (
+                        <span className="font-bold text-slate-600 dark:text-slate-400 text-xs">
+                          {item.rank}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Player Profile & Team */}
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar
+                          name={item.user.fullName}
+                          jerseyNumber={item.user.jerseyNumber}
+                          size="md"
+                          showNumber
+                        />
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Link
+                              to={`/players/${item.user.id}`}
+                              className="font-bold text-slate-950 dark:text-white text-sm hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors truncate"
+                            >
+                              {item.user.fullName}
+                            </Link>
+                            {item.isCurrentUser && (
+                              <span className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 text-[10px] font-bold px-1.5 py-0.2 rounded">
+                                BẠN
+                              </span>
+                            )}
+                            {item.user.role === 'ADMIN' && (
+                              <span className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-[9px] font-bold px-1 rounded uppercase">
+                                ADMIN
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                            {item.teamName} · #{item.user.jerseyNumber || '—'}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleApprovePlayer(p.id, p.name)}
-                        className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold rounded shadow-2xs transition-colors cursor-pointer"
-                      >
-                        Duyệt
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRejectPlayer(p.id, p.name)}
-                        className="px-2 py-1 bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 text-[11px] font-medium rounded transition-colors cursor-pointer"
-                      >
-                        Từ chối
-                      </button>
-                    </div>
-                  </div>
+                    </td>
+
+                    {/* Position */}
+                    <td className="py-3.5 px-3 text-center">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold text-[11px]">
+                        {item.position}
+                      </span>
+                    </td>
+
+                    {/* Matches */}
+                    <td className="py-3.5 px-3 text-center font-bold text-slate-700 dark:text-slate-300">
+                      {item.totalMatches}
+                    </td>
+
+                    {/* Wins */}
+                    <td className="py-3.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
+                      {item.totalWins}
+                    </td>
+
+                    {/* Draws */}
+                    <td className="py-3.5 px-3 text-center font-medium text-slate-600 dark:text-slate-400">
+                      {item.totalDraws ?? (item.totalMatches - item.totalWins - (item.totalLosses || 0))}
+                    </td>
+
+                    {/* Losses */}
+                    <td className="py-3.5 px-3 text-center font-medium text-rose-500 dark:text-rose-400">
+                      {item.totalLosses ?? 0}
+                    </td>
+
+                    {/* Goals */}
+                    <td className="py-3.5 px-3 text-center font-black text-slate-950 dark:text-white text-sm">
+                      {item.totalGoals}
+                    </td>
+
+                    {/* Assists */}
+                    <td className="py-3.5 px-3 text-center font-bold text-blue-600 dark:text-blue-400">
+                      {item.totalAssists}
+                    </td>
+
+                    {/* Saves */}
+                    <td className="py-3.5 px-3 text-center font-bold text-teal-600 dark:text-teal-400">
+                      {item.totalSaves ?? 0}
+                    </td>
+
+                    {/* MVP */}
+                    <td className="py-3.5 px-3 text-center font-bold text-amber-600 dark:text-amber-400">
+                      {item.totalMvp ?? item.mvpCount}
+                    </td>
+
+                    {/* Form Pills (5 matches) */}
+                    <td className="py-3.5 px-4 text-center">
+                      <div className="inline-flex items-center gap-1 justify-center">
+                        {item.form.map((res, fIdx) => (
+                          <span
+                            key={fIdx}
+                            className={`w-5 h-5 rounded-md text-white text-[10px] font-black flex items-center justify-center shadow-2xs ${
+                              res === 'W'
+                                ? 'bg-emerald-600'
+                                : res === 'D'
+                                ? 'bg-slate-400'
+                                : 'bg-rose-500'
+                            }`}
+                            title={res === 'W' ? 'Thắng' : res === 'D' ? 'Hòa' : 'Thua'}
+                          >
+                            {res}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+
+                    {/* Win Rate Progress */}
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="inline-flex items-center gap-2.5 justify-end">
+                        <span className="font-black text-xs text-emerald-600 dark:text-emerald-400">
+                          {item.winRate}%
+                        </span>
+                        <div className="w-16 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden hidden sm:block border border-slate-200 dark:border-slate-700">
+                          <div
+                            className="h-full bg-gradient-to-r from-emerald-600 to-teal-400 rounded-full"
+                            style={{ width: `${Math.min(item.winRate, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
                 ))
               )}
-            </div>
-          </div>
-        </aside>
-      </div>
-
-      {/* Role Setting Modal */}
-      {roleModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white max-w-md w-full rounded-xl p-5 shadow-xl border border-slate-200 flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-headline font-bold text-base text-slate-900">
-                Phân Quyền Ban Cán Sự
-              </h3>
-              <button
-                type="button"
-                onClick={() => setRoleModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-lg">close</span>
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-1 bg-slate-50 p-3 rounded-lg border border-slate-200/80">
-              <span className="text-[11px] font-medium text-slate-400">Cầu thủ được chọn:</span>
-              <span className="font-headline font-bold text-base text-emerald-700">
-                {targetPlayer.name}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                Vai trò trong giải:
-              </label>
-              <label
-                onClick={() => setSelectedRole('ADMIN')}
-                className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors ${
-                  selectedRole === 'ADMIN'
-                    ? 'border-emerald-500 bg-emerald-50/40'
-                    : 'border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="playerRole"
-                  value="ADMIN"
-                  checked={selectedRole === 'ADMIN'}
-                  onChange={() => setSelectedRole('ADMIN')}
-                  className="accent-emerald-600 w-4 h-4 mt-0.5"
-                />
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-slate-900">ADMIN / CAPTAIN</span>
-                  <span className="text-[11px] text-slate-500">
-                    Toàn quyền nhập tỷ số, duyệt thẻ phạt và thành viên mới.
-                  </span>
-                </div>
-              </label>
-
-              <label
-                onClick={() => setSelectedRole('PLAYER')}
-                className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors ${
-                  selectedRole === 'PLAYER'
-                    ? 'border-emerald-500 bg-emerald-50/40'
-                    : 'border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="playerRole"
-                  value="PLAYER"
-                  checked={selectedRole === 'PLAYER'}
-                  onChange={() => setSelectedRole('PLAYER')}
-                  className="accent-emerald-600 w-4 h-4 mt-0.5"
-                />
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-slate-900">PLAYER / THÀNH VIÊN</span>
-                  <span className="text-[11px] text-slate-500">
-                    Xem bảng xếp hạng, điểm danh thi đấu và hồ sơ cá nhân.
-                  </span>
-                </div>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setRoleModalOpen(false)}
-                className="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 text-xs font-medium cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={savePlayerRole}
-                className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs cursor-pointer"
-              >
-                Lưu Cập Nhật
-              </button>
-            </div>
-          </div>
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {/* Table Footer Summary */}
+        <div className="px-5 py-3.5 bg-slate-50 dark:bg-slate-900/80 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400 font-space">
+          <span className="flex items-center gap-1.5 font-medium">
+            <span className="material-symbols-outlined text-emerald-600 text-sm">verified</span>
+            Dữ liệu ghi nhận chính xác theo thể thức thi đấu 7v7 Saigon Sunday League
+          </span>
+          <span className="font-bold text-slate-700 dark:text-slate-300">
+            Hiển thị {filteredItems.length} / {items.length} cầu thủ
+          </span>
+        </div>
+      </Card>
     </div>
   );
 };
+
+export default LeaderboardPage;

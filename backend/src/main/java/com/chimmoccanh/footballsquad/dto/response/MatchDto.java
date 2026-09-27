@@ -30,6 +30,9 @@ public class MatchDto {
     private String aiAnalysis;
     private LocalDateTime aiAnalyzedAt;
     private String notes;
+    private String jerseyWinnerTeam;    // "SPAIN" hoặc "FRANCE"
+    private LocalDateTime startAt;
+    private LocalDateTime endAt;
     private LocalDateTime createdAt;
 
     private List<MatchParticipantDto> participants;
@@ -51,6 +54,9 @@ public class MatchDto {
                 .aiAnalysis(match.getAiAnalysis())
                 .aiAnalyzedAt(match.getAiAnalyzedAt())
                 .notes(match.getNotes())
+                .jerseyWinnerTeam(match.getJerseyWinnerTeam())
+                .startAt(match.getStartAt())
+                .endAt(match.getEndAt())
                 .createdAt(match.getCreatedAt())
                 .build();
     }

@@ -13,29 +13,29 @@ export const MatchCard: React.FC<{ match: Match }> = ({ match }) => {
   const participantCount = match.participants?.length || 0;
 
   return (
-    <Card hoverable className="flex flex-col justify-between">
+    <Card hoverable elevation="level1" className="flex flex-col justify-between group !p-4 sm:!p-5 !rounded-2xl">
       {/* Top Header */}
       <div>
-        <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center justify-between gap-2 mb-2.5">
           <StatusBadge status={match.status} />
-          <span className="text-xs font-mono text-slate-500 flex items-center gap-1">
-            <span className="material-symbols-outlined text-[16px] text-slate-400">location_on</span>
-            {match.location || 'Sân cố định'}
+          <span className="text-xs font-space text-slate-400 dark:text-slate-500 flex items-center gap-1">
+            <span className="material-symbols-outlined text-sm">location_on</span>
+            <span className="truncate max-w-[120px]">{match.location || 'Sân cố định'}</span>
           </span>
         </div>
 
-        <h3 className="font-heading font-black text-lg text-slate-900 mb-2 line-clamp-1 hover:text-red-600 transition-colors">
+        <h3 className="font-space font-bold text-base text-slate-900 dark:text-white mb-2 line-clamp-1 group-hover:text-emerald-500 transition-colors">
           {match.title || `Trận bóng ngày ${match.matchDate}`}
         </h3>
 
-        <div className="flex items-center gap-3 text-xs text-slate-500 font-mono mb-4">
+        <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 font-space mb-3">
           <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-[16px] text-red-500">calendar_today</span>
+            <span className="material-symbols-outlined text-sm text-rose-500">calendar_today</span>
             {formatDateVi(match.matchDate)}
           </span>
           {match.matchTime && (
             <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[16px] text-amber-500">schedule</span>
+              <span className="material-symbols-outlined text-sm text-amber-500">schedule</span>
               {formatTimeVi(match.matchTime)}
             </span>
           )}
@@ -43,40 +43,52 @@ export const MatchCard: React.FC<{ match: Match }> = ({ match }) => {
 
         {/* Score or Team preview */}
         {hasScore ? (
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between px-6 mb-4 shadow-xs">
+          <div className="p-2.5 rounded-xl bg-slate-100/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 mb-3 shadow-inner">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full border border-red-400/40" style={{ backgroundColor: TEAM_A_COLOR }} />
-              <span className="text-xs font-bold text-slate-900">{TEAM_A_NAME}</span>
+              <span
+                className="w-3 h-3 rounded-full border border-rose-400/50 shadow-xs"
+                style={{ backgroundColor: TEAM_A_COLOR }}
+              />
+              <span className="text-xs font-space font-bold text-slate-800 dark:text-slate-200">
+                {TEAM_A_NAME}
+              </span>
             </div>
-            <div className="font-heading font-black text-xl">
-              <span className="text-red-600">{match.scoreTeamA}</span>
-              <span className="text-slate-400 mx-2">-</span>
-              <span className="text-blue-600">{match.scoreTeamB}</span>
+            <div className="font-space font-black text-lg tracking-tight">
+              <span className="text-rose-500">{match.scoreTeamA}</span>
+              <span className="text-slate-400 dark:text-slate-600 mx-2">-</span>
+              <span className="text-blue-500">{match.scoreTeamB}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-900">{TEAM_B_NAME}</span>
-              <span className="w-2.5 h-2.5 rounded-full border border-blue-400/40" style={{ backgroundColor: TEAM_B_COLOR }} />
+              <span className="text-xs font-space font-bold text-slate-800 dark:text-slate-200">
+                {TEAM_B_NAME}
+              </span>
+              <span
+                className="w-3 h-3 rounded-full border border-blue-400/50 shadow-xs"
+                style={{ backgroundColor: TEAM_B_COLOR }}
+              />
             </div>
           </div>
         ) : (
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-600 mb-4 shadow-xs">
-            <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[18px] text-blue-500">groups</span>
-              <span>Cầu thủ tham gia:</span>
+          <div className="p-2.5 rounded-xl bg-slate-100/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 mb-3 shadow-inner">
+            <span className="flex items-center gap-1.5 font-space">
+              <span className="material-symbols-outlined text-base text-emerald-500">groups</span>
+              <span>Cầu thủ đăng ký:</span>
             </span>
-            <span className="font-mono font-bold text-slate-900">{participantCount} / 14+</span>
+            <span className="font-space font-extrabold text-slate-900 dark:text-slate-100">
+              {participantCount} / 14+
+            </span>
           </div>
         )}
       </div>
 
       {/* Action Footer */}
-      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-        <span className="text-xs font-mono text-slate-400">
-          {match.createdBy?.fullName ? `Tạo bởi: ${match.createdBy.fullName}` : 'Thể thức 7v7'}
+      <div className="pt-2.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <span className="text-[11px] font-space text-slate-400 dark:text-slate-500 truncate max-w-[130px]">
+          {match.createdBy?.fullName ? `Tạo bởi: ${match.createdBy.fullName}` : 'Sân 7v7'}
         </span>
         <Link to={`/matches/${match.id}`}>
-          <Button size="sm" variant={isLive ? 'secondary' : 'primary'} rightIcon="arrow_forward">
-            {isLive ? 'Vào trận trực tiếp' : 'Xem chi tiết'}
+          <Button size="sm" variant={isLive ? 'primary' : 'secondary'} rightIcon="arrow_forward">
+            {isLive ? 'Vào phòng LIVE' : 'Xem chi tiết'}
           </Button>
         </Link>
       </div>

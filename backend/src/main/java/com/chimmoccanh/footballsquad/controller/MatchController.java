@@ -103,4 +103,19 @@ public class MatchController {
         MatchDto match = matchService.updateScore(id, request);
         return ResponseEntity.ok(ApiResponse.ok("Cập nhật tỉ số trận đấu thành công", match));
     }
+
+    /**
+     * Bước 2: Người thắng spin chọn áo đấu (SPAIN hoặc FRANCE).
+     * Sau khi chọn, trạng thái tự chuyển sang PLAYER_PICKING.
+     */
+    @PostMapping("/{id}/select-jersey")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<MatchDto>> selectJersey(
+            @PathVariable UUID id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        String jerseyTeam = body.get("jerseyTeam"); // "SPAIN" or "FRANCE"
+        MatchDto match = matchService.selectJersey(id, jerseyTeam, userDetails.getUser());
+        return ResponseEntity.ok(ApiResponse.ok("Đã chọn áo đấu " + jerseyTeam, match));
+    }
 }

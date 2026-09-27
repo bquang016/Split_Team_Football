@@ -16,6 +16,9 @@ import { PlayerProfilePage } from './pages/PlayerProfilePage';
 import { AdminPage } from './pages/AdminPage';
 import { DesignShowcasePage } from './pages/DesignShowcasePage';
 import { NotFoundPage } from './pages/NotFoundPage';
+// New pages
+import { MatchHistoryPage } from './pages/MatchHistoryPage';
+import { LineupPage } from './pages/LineupPage';
 
 export const App: React.FC = () => {
   const checkAuth = useAuthStore((state) => state.checkAuth);
@@ -40,7 +43,7 @@ export const App: React.FC = () => {
           },
           success: {
             iconTheme: {
-              primary: '#DC2626',
+              primary: '#10B981',
               secondary: '#FFFFFF',
             },
           },
@@ -62,13 +65,17 @@ export const App: React.FC = () => {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/matches" element={<MatchListPage />} />
           <Route path="/matches/:id" element={<MatchDetailPage />} />
+          {/* Trang sa bàn riêng biệt (Step 5) */}
+          <Route path="/matches/:id/lineup" element={<LineupPage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/match-history" element={<MatchHistoryPage />} />
           <Route path="/players" element={<PlayerListPage />} />
           <Route path="/players/:id" element={<PlayerProfilePage />} />
 
-          {/* Design Showcase / UI Component System Review */}
+          {/* Design Showcase / UI Component System Review (dev only) */}
           <Route path="/design-system" element={<DesignShowcasePage />} />
           <Route path="/showcase" element={<DesignShowcasePage />} />
+          <Route path="/duyet-thiet-ke" element={<DesignShowcasePage />} />
 
           {/* Admin Protected Route */}
           <Route

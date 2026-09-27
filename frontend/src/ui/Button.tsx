@@ -2,7 +2,7 @@ import React from 'react';
 import clsx from 'clsx';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'gold' | 'surface' | 'outline' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'emerald' | 'surface' | 'outline' | 'danger' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   leftIcon?: string;
@@ -20,32 +20,33 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
+  // Kiểu 2: Modern Glassmorphic Pill
   const baseStyles =
-    'inline-flex items-center justify-center font-bold tracking-tight rounded-xl transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none btn-athletic';
+    'relative inline-flex items-center justify-center font-display font-bold tracking-tight rounded-full transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.97]';
 
   const variants = {
-    // Primary: Athletic Yellow background with Deep Emerald Green text for maximum contrast
+    // Primary: Emerald Glass Pill
     primary:
-      'bg-[#FED01B] hover:bg-[#E5BC17] text-[#064E3B] font-extrabold shadow-sm shadow-[#FED01B]/30 border border-[#E5BC17]/40',
-    // Secondary: Deep Emerald background with White text
+      'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-md shadow-emerald-900/30 hover:shadow-emerald-600/40 border border-white/20 hover:border-white/40',
+    emerald:
+      'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-900/30 border border-white/20',
+    // Secondary: Frosted Glass Pill
     secondary:
-      'bg-[#064E3B] hover:bg-[#003527] text-white font-bold shadow-sm shadow-[#064E3B]/20 border border-[#064E3B]',
-    gold:
-      'bg-[#FED01B] hover:bg-[#E5BC17] text-[#064E3B] font-extrabold shadow-sm',
+      'bg-white/10 hover:bg-white/20 dark:bg-slate-800/60 dark:hover:bg-slate-700/80 backdrop-blur-xl border border-white/20 dark:border-slate-700 text-slate-800 dark:text-slate-100 shadow-sm',
     surface:
-      'bg-[#F0F3FF] hover:bg-[#E2E8F8] text-[#151C27] border border-[#E2E8F8] shadow-xs',
+      'bg-slate-100/80 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700',
     outline:
-      'bg-transparent hover:bg-[#F0F3FF] text-[#064E3B] border border-[#064E3B]/30',
+      'bg-transparent hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 hover:border-emerald-400',
     danger:
-      'bg-[#BA1A1A] hover:bg-[#93000A] text-white font-bold shadow-xs',
+      'bg-gradient-to-r from-rose-600 to-red-500 hover:from-rose-500 hover:to-red-400 text-white shadow-md shadow-rose-900/30 border border-white/20',
     ghost:
-      'bg-transparent hover:bg-[#F0F3FF] text-[#404944]',
+      'bg-transparent hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300',
   };
 
   const sizes = {
-    sm: 'px-3 py-1.5 text-xs gap-1.5',
-    md: 'px-4 py-2 text-sm gap-2',
-    lg: 'px-6 py-3 text-base gap-2.5',
+    sm: 'px-2.5 py-1 text-[11px] gap-1',
+    md: 'px-3.5 py-1.5 text-xs gap-1.5',
+    lg: 'px-4.5 py-2 text-xs font-bold gap-2',
   };
 
   return (
@@ -55,13 +56,13 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {isLoading ? (
-        <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+        <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin mr-1" />
       ) : leftIcon ? (
-        <span className="material-symbols-outlined text-[18px]">{leftIcon}</span>
+        <span className="material-symbols-outlined text-[15px]">{leftIcon}</span>
       ) : null}
-      {children}
+      <span>{children}</span>
       {!isLoading && rightIcon && (
-        <span className="material-symbols-outlined text-[18px]">{rightIcon}</span>
+        <span className="material-symbols-outlined text-[15px]">{rightIcon}</span>
       )}
     </button>
   );

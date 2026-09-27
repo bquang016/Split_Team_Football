@@ -37,16 +37,18 @@ export const PlayerProfilePage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh]">
-        <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-xs font-mono text-slate-500">Đang tải hồ sơ cầu thủ...</p>
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-xs font-space text-slate-500">Đang tải hồ sơ cầu thủ...</p>
       </div>
     );
   }
 
   if (!player) {
     return (
-      <div className="text-center py-20">
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Không tìm thấy cầu thủ</h2>
+      <div className="text-center py-20 font-sans">
+        <h2 className="text-xl font-space font-black text-slate-900 dark:text-white mb-3">
+          Không tìm thấy cầu thủ
+        </h2>
         <Link to="/players">
           <Button variant="primary">Quay lại danh sách</Button>
         </Link>
@@ -63,115 +65,111 @@ export const PlayerProfilePage: React.FC = () => {
   const winRate = totalMatches > 0 ? Math.round((totalWins / totalMatches) * 1000) / 10 : 0;
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+    <div className="flex flex-col gap-6 max-w-4xl mx-auto font-sans">
       {/* Player Header Banner Card */}
-      <Card elevation="level2" className="relative overflow-hidden p-6 sm:p-8">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-red-600/5 rounded-full blur-3xl pointer-events-none" />
-
+      <Card elevation="glass" glow className="relative overflow-hidden p-6 sm:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           <Avatar name={player.fullName} jerseyNumber={player.jerseyNumber} size="xl" showNumber />
 
           <div className="flex flex-col items-center sm:items-start text-center sm:text-left flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="font-heading font-black text-2xl sm:text-3xl text-slate-900">
+            <div className="flex items-center gap-2.5 mb-1">
+              <h1 className="font-space font-black text-2xl sm:text-3xl text-slate-900 dark:text-white tracking-tight">
                 {player.fullName}
               </h1>
               {player.jerseyNumber && (
-                <span className="font-mono font-black text-xl text-amber-600">
+                <span className="font-space font-black text-2xl text-amber-600 dark:text-amber-400">
                   #{player.jerseyNumber}
                 </span>
               )}
             </div>
 
-            <p className="text-xs font-mono text-slate-500 mb-3">
-              @{player.username} · {player.email || 'Thành viên CLB'}
+            <p className="text-xs font-space text-slate-600 dark:text-slate-400 mb-3">
+              @{player.username} - {player.email || 'Thành viên chính thức CLB'}
             </p>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={player.role === 'ADMIN' ? 'teamA' : 'neutral'}>
+              <Badge variant={player.role === 'ADMIN' ? 'primary' : 'neutral'}>
                 {player.role === 'ADMIN' ? 'Quản trị viên' : 'Cầu thủ'}
               </Badge>
               <Badge variant="gold">Thể thức 7v7</Badge>
+              {totalMvps > 0 && (
+                <Badge variant="primary">
+                  {totalMvps} lần MVP
+                </Badge>
+              )}
             </div>
           </div>
         </div>
       </Card>
 
-      {/* Aggregate Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <Card elevation="level1" className="p-4 text-center">
-          <span className="text-[10px] font-mono uppercase text-slate-500 font-bold block">Số trận</span>
-          <span className="font-heading font-black text-2xl text-slate-900 mt-1 block">
+      {/* Aggregate Stats Bento Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card elevation="level1" className="text-center p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+          <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+            Trận đấu
+          </span>
+          <span className="font-space font-black text-3xl sm:text-4xl text-slate-950 dark:text-white mt-1 block">
             {totalMatches}
           </span>
         </Card>
-        <Card elevation="level1" className="p-4 text-center">
-          <span className="text-[10px] font-mono uppercase text-slate-500 font-bold block">Bàn thắng</span>
-          <span className="font-heading font-black text-2xl text-red-600 mt-1 block">
+
+        <Card elevation="level1" className="text-center p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+          <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+            Bàn thắng
+          </span>
+          <span className="font-space font-black text-3xl sm:text-4xl text-rose-600 dark:text-rose-400 mt-1 block">
             {totalGoals}
           </span>
         </Card>
-        <Card elevation="level1" className="p-4 text-center">
-          <span className="text-[10px] font-mono uppercase text-slate-500 font-bold block">Kiến tạo</span>
-          <span className="font-heading font-black text-2xl text-blue-600 mt-1 block">
+
+        <Card elevation="level1" className="text-center p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+          <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+            Kiến tạo
+          </span>
+          <span className="font-space font-black text-3xl sm:text-4xl text-blue-600 dark:text-blue-400 mt-1 block">
             {totalAssists}
           </span>
         </Card>
-        <Card elevation="level1" className="p-4 text-center">
-          <span className="text-[10px] font-mono uppercase text-slate-500 font-bold block">Chiến thắng</span>
-          <span className="font-heading font-black text-2xl text-amber-600 mt-1 block">
-            {totalWins} ({winRate}%)
+
+        <Card elevation="level1" className="text-center p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+          <span className="text-xs font-space font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+            Tỷ lệ thắng
           </span>
-        </Card>
-        <Card elevation="level1" className="p-4 text-center col-span-2 sm:col-span-1">
-          <span className="text-[10px] font-mono uppercase text-slate-500 font-bold block">Danh hiệu MVP</span>
-          <span className="font-heading font-black text-2xl text-amber-600 mt-1 block">
-            ★ {totalMvps}
+          <span className="font-space font-black text-3xl sm:text-4xl text-emerald-600 dark:text-emerald-400 mt-1 block">
+            {winRate}%
           </span>
         </Card>
       </div>
 
-      {/* Recent Match Participation */}
-      <Card elevation="level1">
-        <h3 className="font-heading font-black text-lg text-slate-900 mb-4 pb-3 border-b border-slate-100">
-          Lịch sử các trận đã thi đấu
+      {/* Match History Table */}
+      <Card elevation="level1" className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+        <h3 className="font-space font-extrabold text-lg text-slate-950 dark:text-white mb-4">
+          Lịch Sử Thi Đấu
         </h3>
 
         {statsHistory.length === 0 ? (
-          <p className="text-center py-8 text-xs text-slate-400 italic">
-            Chưa có thông số thi đấu nào được ghi nhận
+          <p className="text-sm text-slate-400 italic text-center py-6">
+            Chưa có thông số thi đấu nào được ghi nhận.
           </p>
         ) : (
-          <div className="flex flex-col divide-y divide-slate-100">
-            {statsHistory.map((s) => (
-              <div key={s.id} className="py-3 flex items-center justify-between">
-                <div>
-                  <Link
-                    to={`/matches/${s.matchId}`}
-                    className="font-bold text-sm text-slate-900 hover:text-red-600 transition-colors block"
-                  >
-                    Xem trận đấu #{s.matchId.slice(0, 8)}
-                  </Link>
-                  <span className="text-[11px] font-mono text-slate-500">
-                    {s.team === 'A' ? 'Đội A (Đỏ)' : 'Đội B (Xanh)'}
+          <div className="space-y-2">
+            {statsHistory.map((stat) => (
+              <div
+                key={stat.id}
+                className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs font-space"
+              >
+                <div className="flex items-center gap-3">
+                  <Badge variant={stat.team === 'A' ? 'teamA' : 'teamB'} size="sm">
+                    Đội {stat.team}
+                  </Badge>
+                  <span className="font-bold text-slate-950 dark:text-white">
+                    {stat.isWinner ? 'Thắng trận' : 'Thua trận'}
                   </span>
                 </div>
-
-                <div className="flex items-center gap-4 text-xs font-mono">
-                  <span className="text-red-600 font-bold">{s.goals} bàn</span>
-                  <span className="text-blue-600 font-bold">{s.assists} kiến tạo</span>
-                  {s.isMvp && (
-                    <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 font-bold border border-amber-200">
-                      MVP
-                    </span>
-                  )}
-                  <span
-                    className={`font-bold ${
-                      s.isWinner ? 'text-amber-600' : 'text-slate-500'
-                    }`}
-                  >
-                    {s.isWinner ? 'Thắng' : 'Thua'}
-                  </span>
+                <div className="flex items-center gap-4 text-slate-900 dark:text-slate-200 font-medium">
+                  <span>{stat.goals || 0} Bàn thắng</span>
+                  <span>{stat.assists || 0} Kiến tạo</span>
+                  {stat.isMvp && <Badge variant="primary" size="sm">MVP</Badge>}
                 </div>
               </div>
             ))}

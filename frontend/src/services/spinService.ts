@@ -14,4 +14,9 @@ export const spinService = {
     const res = await api.get<ApiResponse<SpinSession>>(`/api/matches/${matchId}/spin/latest`);
     return res.data;
   },
+
+  async spinRoundPick(matchId: string): Promise<ApiResponse<SpinSession>> {
+    const res = await api.post<ApiResponse<SpinSession>>(`/api/matches/${matchId}/spin/round-pick`);
+    return res.data;
+  },
 };

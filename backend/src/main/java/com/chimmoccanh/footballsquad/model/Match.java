@@ -62,6 +62,15 @@ public class Match {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "jersey_winner_team", length = 10)
+    private String jerseyWinnerTeam;   // "SPAIN" hoặc "FRANCE" - đội áo mà người thắng spin đã chọn
+
+    @Column(name = "start_at")
+    private LocalDateTime startAt;     // Thời điểm ADMIN bắt đầu trận (IN_PROGRESS)
+
+    @Column(name = "end_at")
+    private LocalDateTime endAt;       // Thời điểm ADMIN kết thúc trận (COMPLETED)
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

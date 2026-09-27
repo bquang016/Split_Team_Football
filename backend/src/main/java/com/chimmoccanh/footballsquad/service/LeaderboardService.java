@@ -52,8 +52,13 @@ public class LeaderboardService {
 
         int totalGoals = playerStatsRepository.sumGoalsByUserId(userId);
         int totalAssists = playerStatsRepository.sumAssistsByUserId(userId);
+        int totalSaves = playerStatsRepository.sumSavesByUserId(userId);
         int totalWins = playerStatsRepository.countWinsByUserId(userId);
+        int totalLosses = playerStatsRepository.countLossesByUserId(userId);
         int totalMatches = playerStatsRepository.countMatchesByUserId(userId);
+        int totalMvp = playerStatsRepository.countMvpByUserId(userId);
+        int totalDraws = totalMatches - totalWins - totalLosses;
+        if (totalDraws < 0) totalDraws = 0;
         double winRate = totalMatches > 0 ? ((double) totalWins / totalMatches) * 100.0 : 0.0;
 
         LeaderboardCache cache = leaderboardRepository.findById(userId)
@@ -62,8 +67,12 @@ public class LeaderboardService {
         cache.setUser(user);
         cache.setTotalGoals(totalGoals);
         cache.setTotalAssists(totalAssists);
+        cache.setTotalSaves(totalSaves);
         cache.setTotalWins(totalWins);
+        cache.setTotalLosses(totalLosses);
+        cache.setTotalDraws(totalDraws);
         cache.setTotalMatches(totalMatches);
+        cache.setTotalMvp(totalMvp);
         cache.setWinRate(Math.round(winRate * 10.0) / 10.0);
 
         leaderboardRepository.save(cache);

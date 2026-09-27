@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -79,14 +80,47 @@ public class SpinService {
 
         SpinSession savedSession = spinSessionRepository.save(session);
 
-        // Update match status to CAPTAIN_PICKING
-        match.setStatus(MatchStatus.CAPTAIN_PICKING);
+        // Update match status to JERSEY_SELECTION (Bước 2)
+        match.setStatus(MatchStatus.JERSEY_SELECTION);
         matchRepository.save(match);
 
         SpinSessionDto dto = SpinSessionDto.fromEntity(savedSession);
         notificationService.broadcastSpinEvent(matchId, dto);
         notificationService.broadcastMatchStatus(matchId, match);
 
+        return dto;
+    }
+
+    @Transactional
+    public SpinSessionDto spinRoundPick(UUID matchId) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrue(matchId);
+        if (hosts.size() < 2) {
+            throw new BadRequestException("Cần có 2 đội trưởng để quay lượt pick");
+        }
+
+        User hostA = hosts.get(0).getUser();
+        User hostB = hosts.get(1).getUser();
+
+        long seed = Math.abs(secureRandom.nextLong());
+        boolean winnerIsA = (seed % 2 == 0);
+        User winner = winnerIsA ? hostA : hostB;
+        int durationMs = 3500;
+
+        SpinSession session = SpinSession.builder()
+                .match(match)
+                .hostA(hostA)
+                .hostB(hostB)
+                .winner(winner)
+                .spinSeed(seed)
+                .durationMs(durationMs)
+                .build();
+
+        SpinSession savedSession = spinSessionRepository.save(session);
+        SpinSessionDto dto = SpinSessionDto.fromEntity(savedSession);
+        notificationService.broadcastSpinEvent(matchId, dto);
         return dto;
     }
 

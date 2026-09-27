@@ -104,6 +104,25 @@ public class MatchService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
 
         match.setStatus(newStatus);
+        if (newStatus == MatchStatus.IN_PROGRESS && match.getStartAt() == null) {
+            match.setStartAt(java.time.LocalDateTime.now());
+        } else if (newStatus == MatchStatus.COMPLETED && match.getEndAt() == null) {
+            match.setEndAt(java.time.LocalDateTime.now());
+        }
+        Match saved = matchRepository.save(match);
+        MatchDto dto = getMatchDetails(saved.getId());
+
+        notificationService.broadcastMatchStatus(matchId, dto);
+        return dto;
+    }
+
+    @Transactional
+    public MatchDto selectJersey(UUID matchId, String jerseyTeam, User user) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        match.setJerseyWinnerTeam(jerseyTeam);
+        match.setStatus(MatchStatus.PLAYER_PICKING);
         Match saved = matchRepository.save(match);
         MatchDto dto = getMatchDetails(saved.getId());
 
@@ -115,6 +134,10 @@ public class MatchService {
     public MatchParticipantDto joinMatch(UUID matchId, User user) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        if (match.getStatus() != MatchStatus.PENDING) {
+            throw new BadRequestException("Trận đấu không còn ở trạng thái mở điểm danh");
+        }
 
         if (participantRepository.existsByMatchIdAndUserId(matchId, user.getId())) {
             throw new BadRequestException("Bạn đã tham gia trận đấu này rồi");
@@ -137,6 +160,13 @@ public class MatchService {
 
     @Transactional
     public void leaveMatch(UUID matchId, User user) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        if (match.getStatus() != MatchStatus.PENDING) {
+            throw new BadRequestException("Trận đấu đã bắt đầu hoặc không ở trạng thái mở điểm danh");
+        }
+
         if (!participantRepository.existsByMatchIdAndUserId(matchId, user.getId())) {
             throw new BadRequestException("Bạn chưa tham gia trận đấu này");
         }

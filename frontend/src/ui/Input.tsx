@@ -7,46 +7,59 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   helperText?: string;
   leftIcon?: string;
   rightIcon?: string;
+  onClear?: () => void;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, helperText, leftIcon, rightIcon, className, id, ...props }, ref) => {
+  ({ label, error, helperText, leftIcon, rightIcon, onClear, className, id, value, ...props }, ref) => {
     const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
 
     return (
-      <div className="w-full flex flex-col gap-1.5 text-left">
+      <div className="w-full flex flex-col gap-1 text-left group">
         {label && (
-          <label htmlFor={inputId} className="text-xs font-semibold text-slate-700 uppercase tracking-wider font-mono">
+          <label
+            htmlFor={inputId}
+            className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-space"
+          >
             {label}
           </label>
         )}
-        <div className="relative flex items-center">
+        <div className="relative flex items-center border-b-2 border-slate-300 dark:border-slate-700/80 focus-within:border-emerald-500 dark:focus-within:border-emerald-400 transition-colors pb-0.5">
           {leftIcon && (
-            <span className="absolute left-3.5 text-slate-400 material-symbols-outlined text-[20px] pointer-events-none">
+            <span className="material-symbols-outlined text-slate-400 dark:text-slate-500 text-[20px] mr-2 pointer-events-none group-focus-within:text-emerald-500 transition-colors">
               {leftIcon}
             </span>
           )}
           <input
             id={inputId}
             ref={ref}
+            value={value}
             className={clsx(
-              'w-full rounded-xl bg-white border border-slate-300 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400',
-              'focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all shadow-xs',
-              leftIcon && 'pl-11',
-              rightIcon && 'pr-11',
-              error && 'border-red-500 focus:border-red-500 focus:ring-red-500/20',
+              'w-full bg-transparent py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none font-sans',
+              error && 'text-rose-500',
               className
             )}
             {...props}
           />
-          {rightIcon && (
-            <span className="absolute right-3.5 text-slate-400 material-symbols-outlined text-[20px] pointer-events-none">
+          {onClear && value && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
+            >
+              <span className="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          )}
+          {rightIcon && !onClear && (
+            <span className="material-symbols-outlined text-slate-400 text-[20px] ml-2 pointer-events-none">
               {rightIcon}
             </span>
           )}
         </div>
-        {error && <span className="text-xs text-red-600 font-medium">{error}</span>}
-        {helperText && !error && <span className="text-xs text-slate-500">{helperText}</span>}
+        {error && <span className="text-xs text-rose-500 font-semibold mt-0.5">{error}</span>}
+        {helperText && !error && (
+          <span className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{helperText}</span>
+        )}
       </div>
     );
   }

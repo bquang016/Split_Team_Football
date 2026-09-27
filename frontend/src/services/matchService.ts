@@ -55,4 +55,9 @@ export const matchService = {
     const res = await api.patch<ApiResponse<Match>>(`/api/matches/${matchId}/score`, { scoreTeamA, scoreTeamB });
     return res.data;
   },
+
+  async selectJersey(matchId: string, jerseyTeam: string): Promise<ApiResponse<Match>> {
+    const res = await api.post<ApiResponse<Match>>(`/api/matches/${matchId}/select-jersey`, { jerseyTeam });
+    return res.data;
+  },
 };

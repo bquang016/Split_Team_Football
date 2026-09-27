@@ -17,23 +17,23 @@ export const MATCH_STATUS_MAP: Record<MatchStatus, { label: string; color: strin
     bg: '#F1F5F9',
     border: '#CBD5E1',
   },
-  CAPTAIN_SPINNING: {
-    label: 'Quay chọn đội trưởng',
+  JERSEY_SELECTION: {
+    label: 'Chọn áo đấu',
     color: '#0284C7',
     bg: '#F0F9FF',
     border: '#BAE6FD',
   },
-  CAPTAIN_PICKING: {
+  PLAYER_PICKING: {
     label: 'Đang chia đội',
     color: '#D97706',
     bg: '#FFFBEB',
     border: '#FDE68A',
   },
-  LINEUP_SETTING: {
-    label: 'Xếp sơ đồ thi đấu',
-    color: '#059669',
-    bg: '#ECFDF5',
-    border: '#A7F3D0',
+  TRADE_WINDOW: {
+    label: 'Chuyển nhượng',
+    color: '#8B5CF6',
+    bg: '#F5F3FF',
+    border: '#DDD6FE',
   },
   IN_PROGRESS: {
     label: 'Trận đang đá',

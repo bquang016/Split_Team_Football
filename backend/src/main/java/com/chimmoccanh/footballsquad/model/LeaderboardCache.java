@@ -32,13 +32,29 @@ public class LeaderboardCache {
     @Builder.Default
     private Integer totalAssists = 0;
 
+    @Column(name = "total_saves")
+    @Builder.Default
+    private Integer totalSaves = 0;
+
     @Column(name = "total_wins")
     @Builder.Default
     private Integer totalWins = 0;
 
+    @Column(name = "total_losses")
+    @Builder.Default
+    private Integer totalLosses = 0;
+
+    @Column(name = "total_draws")
+    @Builder.Default
+    private Integer totalDraws = 0;
+
     @Column(name = "total_matches")
     @Builder.Default
     private Integer totalMatches = 0;
+
+    @Column(name = "total_mvp")
+    @Builder.Default
+    private Integer totalMvp = 0;
 
     @Column(name = "win_rate")
     @Builder.Default

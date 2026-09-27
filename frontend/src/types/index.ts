@@ -1,28 +1,35 @@
 export type UserRole = 'PLAYER' | 'ADMIN';
 export type UserStatus = 'PENDING' | 'ACTIVE' | 'BANNED';
-export type MatchStatus = 
-  | 'PENDING' 
-  | 'CAPTAIN_SPINNING' 
-  | 'CAPTAIN_PICKING' 
-  | 'LINEUP_SETTING' 
-  | 'IN_PROGRESS' 
-  | 'COMPLETED' 
+
+// MatchStatus theo luồng 6 bước mới
+export type MatchStatus =
+  | 'PENDING'           // Bước 1: Điểm danh đang mở
+  | 'JERSEY_SELECTION'  // Bước 2: Chọn áo đấu
+  | 'PLAYER_PICKING'    // Bước 3: Pick cầu thủ (quay spin trước mỗi lượt)
+  | 'TRADE_WINDOW'      // Bước 4: Chỉnh sửa / đổi người
+  | 'IN_PROGRESS'       // Đang thi đấu
+  | 'COMPLETED'         // Kết thúc — mở nhập thống kê
   | 'CANCELLED';
 
 export type Team = 'A' | 'B' | 'BENCH' | 'NONE';
 
-export type Position = 
-  | 'GK' 
-  | 'CB' 
-  | 'LB' 
-  | 'RB' 
-  | 'CM' 
-  | 'LM' 
-  | 'RM' 
-  | 'ST' 
-  | 'LW' 
-  | 'RW' 
-  | 'CAM' 
+// Jersey teams — không dùng màu nữa, dùng tên quốc gia
+export type JerseyTeam = 'SPAIN' | 'FRANCE';
+
+export type TradeStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
+
+export type Position =
+  | 'GK'
+  | 'CB'
+  | 'LB'
+  | 'RB'
+  | 'CM'
+  | 'LM'
+  | 'RM'
+  | 'ST'
+  | 'LW'
+  | 'RW'
+  | 'CAM'
   | 'CDM';
 
 export interface User {
@@ -80,6 +87,11 @@ export interface Match {
   createdBy?: User;
   scoreTeamA: number;
   scoreTeamB: number;
+  // Bước 2: Áo đấu đã chọn
+  jerseyWinnerTeam?: JerseyTeam | null; // "SPAIN" hoặc "FRANCE"
+  // Timeline
+  startAt?: string;    // Khi IN_PROGRESS bắt đầu
+  endAt?: string;      // Khi COMPLETED
   aiAnalysis?: string;
   aiAnalyzedAt?: string;
   notes?: string;
@@ -96,10 +108,24 @@ export interface PlayerStats {
   team: Team;
   goals: number;
   assists: number;
+  saves: number;     // Cứu thua (thủ môn / hậu vệ)
   isWinner: boolean;
   isMvp: boolean;
   enteredBy?: User;
   enteredAt?: string;
+}
+
+// Bước 4 — Trade Window
+export interface TradeRequest {
+  id: string;
+  matchId: string;
+  requestedBy: User;   // Đội trưởng gửi yêu cầu
+  playerOffered: User; // Cầu thủ bên mình muốn đổi
+  playerWanted: User;  // Cầu thủ bên kia muốn lấy
+  status: TradeStatus;
+  expiresAt?: string;
+  respondedAt?: string;
+  createdAt: string;
 }
 
 export interface LeaderboardItem {
@@ -107,10 +133,26 @@ export interface LeaderboardItem {
   user: User;
   totalGoals: number;
   totalAssists: number;
+  totalSaves: number;    // Tổng cứu thua
   totalWins: number;
+  totalLosses: number;   // Tổng thua
+  totalDraws: number;    // Tổng hòa
   totalMatches: number;
+  totalMvp: number;      // Số lần MVP
   winRate: number;
   updatedAt: string;
+}
+
+export interface PlayerSummary {
+  totalGoals: number;
+  totalAssists: number;
+  totalSaves: number;
+  totalWins: number;
+  totalLosses: number;
+  totalDraws: number;
+  totalMatches: number;
+  totalMvp: number;
+  winRate: number;
 }
 
 export interface AIAnalysis {
@@ -132,3 +174,20 @@ export interface AuthResponse {
   tokenType: string;
   user: User;
 }
+
+// Helper: nhãn hiển thị cho trạng thái trận
+export const MATCH_STATUS_LABEL: Record<MatchStatus, string> = {
+  PENDING: 'Điểm danh',
+  JERSEY_SELECTION: 'Chọn áo',
+  PLAYER_PICKING: 'Pick cầu thủ',
+  TRADE_WINDOW: 'Chỉnh sửa đội hình',
+  IN_PROGRESS: 'Đang diễn ra',
+  COMPLETED: 'Đã kết thúc',
+  CANCELLED: 'Đã hủy',
+};
+
+// Helper: nhãn hiển thị tên đội áo đấu
+export const JERSEY_TEAM_LABEL: Record<JerseyTeam, string> = {
+  SPAIN: 'Tây Ban Nha',
+  FRANCE: 'Pháp',
+};

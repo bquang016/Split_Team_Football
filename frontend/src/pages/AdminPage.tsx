@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { User, UserRole, UserStatus } from '../types';
 import { adminService } from '../services/adminService';
 import { Avatar, Badge, Button, Card, Input, Modal, Select } from '../ui';
@@ -16,7 +16,7 @@ export const AdminPage: React.FC = () => {
   const [editRole, setEditRole] = useState<UserRole>('PLAYER');
   const [savingEdit, setSavingEdit] = useState(false);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
       const statusParam = statusFilter === 'ALL' ? undefined : (statusFilter as UserStatus);
@@ -29,11 +29,11 @@ export const AdminPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchUsers();
-  }, [statusFilter]);
+  }, [fetchUsers]);
 
   const handleApprove = async (userId: string) => {
     try {
@@ -89,45 +89,53 @@ export const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-6xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-heading font-black text-2xl sm:text-3xl text-slate-900">
-            Trung tâm Quản trị CLB
-          </h1>
-          <p className="text-xs text-slate-500 font-mono mt-1">
-            Phê duyệt thành viên mới, phân quyền và quản lý tài khoản người dùng
-          </p>
-        </div>
+    <div className="flex flex-col gap-4 max-w-6xl mx-auto font-sans">
+      <Card elevation="glass" glow className="!p-4 sm:!p-5 relative z-20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+          <div>
+            <div className="flex items-center gap-2">
+              <Badge variant="primary" dot size="sm">
+                Quản trị giải
+              </Badge>
+              <span className="text-[11px] text-slate-400 font-space font-medium">Ban Cán Sự CLB</span>
+            </div>
+            <h1 className="font-space font-black text-lg sm:text-xl text-slate-900 dark:text-white mt-1 tracking-tight">
+              Trung Tâm Quản Trị
+            </h1>
+            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Phê duyệt thành viên mới, phân quyền và quản lý tài khoản người dùng
+            </p>
+          </div>
 
-        <div className="w-56">
-          <Select
-            options={[
-              { value: 'PENDING', label: 'Chờ phê duyệt (Pending)' },
-              { value: 'ACTIVE', label: 'Đang hoạt động (Active)' },
-              { value: 'BANNED', label: 'Đã khóa (Banned)' },
-              { value: 'ALL', label: 'Tất cả trạng thái' },
-            ]}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          />
+          <div className="w-48">
+            <Select
+              options={[
+                { value: 'PENDING', label: 'Chờ phê duyệt (Pending)' },
+                { value: 'ACTIVE', label: 'Đang hoạt động (Active)' },
+                { value: 'BANNED', label: 'Đã khóa (Banned)' },
+                { value: 'ALL', label: 'Tất cả trạng thái' },
+              ]}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            />
+          </div>
         </div>
-      </div>
+      </Card>
 
-      <Card elevation="level1">
+      <Card elevation="level1" className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 text-[11px] font-mono font-bold uppercase text-slate-500 bg-slate-50/60">
-                <th className="py-3 px-3">Cầu thủ</th>
-                <th className="py-3 px-3">Tên đăng nhập</th>
-                <th className="py-3 px-3 text-center">Số áo</th>
-                <th className="py-3 px-3">Vai trò</th>
-                <th className="py-3 px-3">Trạng thái</th>
-                <th className="py-3 px-3 text-right">Thao tác</th>
+              <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-space font-bold uppercase text-slate-400 bg-slate-100/50 dark:bg-slate-900/50">
+                <th className="py-2.5 px-3">Cầu thủ</th>
+                <th className="py-2.5 px-3">Tên đăng nhập</th>
+                <th className="py-2.5 px-3 text-center">Số áo</th>
+                <th className="py-2.5 px-3">Vai trò</th>
+                <th className="py-2.5 px-3">Trạng thái</th>
+                <th className="py-2.5 px-3 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs font-space">
               {loading ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-500">
@@ -142,41 +150,38 @@ export const AdminPage: React.FC = () => {
                 </tr>
               ) : (
                 users.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-2.5">
+                  <tr
+                    key={u.id}
+                    className="hover:bg-slate-100/60 dark:hover:bg-slate-850 transition-colors"
+                  >
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-3">
                         <Avatar name={u.fullName} jerseyNumber={u.jerseyNumber} size="sm" showNumber />
-                        <span className="font-bold text-slate-900 font-heading">{u.fullName}</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{u.fullName}</span>
                       </div>
                     </td>
-                    <td className="py-3 px-3 font-mono text-slate-600">@{u.username}</td>
-                    <td className="py-3 px-3 text-center font-mono font-bold text-amber-700">
+                    <td className="py-3.5 px-4 text-slate-500">@{u.username}</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-amber-500">
                       {u.jerseyNumber ? `#${u.jerseyNumber}` : '—'}
                     </td>
-                    <td className="py-3 px-3">
-                      <Badge variant={u.role === 'ADMIN' ? 'teamA' : 'neutral'} size="sm">
+                    <td className="py-3.5 px-4">
+                      <Badge variant={u.role === 'ADMIN' ? 'primary' : 'neutral'} size="sm">
                         {u.role === 'ADMIN' ? 'Quản trị viên' : 'Cầu thủ'}
                       </Badge>
                     </td>
-                    <td className="py-3 px-3">
+                    <td className="py-3.5 px-4">
                       {u.status === 'PENDING' && (
-                        <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 font-mono text-[10px] font-bold uppercase border border-amber-200">
-                          Chờ duyệt
-                        </span>
+                        <Badge variant="gold" size="sm">Chờ duyệt</Badge>
                       )}
                       {u.status === 'ACTIVE' && (
-                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-mono text-[10px] font-bold uppercase border border-emerald-200">
-                          Hoạt động
-                        </span>
+                        <Badge variant="primary" size="sm" dot>Hoạt động</Badge>
                       )}
                       {u.status === 'BANNED' && (
-                        <span className="px-2.5 py-0.5 rounded-full bg-red-50 text-red-800 font-mono text-[10px] font-bold uppercase border border-red-200">
-                          Bị khóa
-                        </span>
+                        <Badge variant="error" size="sm">Bị khóa</Badge>
                       )}
                     </td>
-                    <td className="py-3 px-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
                         {u.status === 'PENDING' && (
                           <Button
                             size="sm"
@@ -199,7 +204,7 @@ export const AdminPage: React.FC = () => {
                         )}
                         <Button
                           size="sm"
-                          variant="surface"
+                          variant="secondary"
                           onClick={() => openEditModal(u)}
                           leftIcon="edit"
                         >
@@ -217,7 +222,7 @@ export const AdminPage: React.FC = () => {
 
       {/* Edit User Modal */}
       <Modal isOpen={!!editingUser} onClose={() => setEditingUser(null)} title="Sửa thông tin người dùng">
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 font-sans">
           <Input
             label="Họ và tên"
             value={editFullName}

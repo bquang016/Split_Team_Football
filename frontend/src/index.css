@@ -1,132 +1,357 @@
 @import "tailwindcss";
 
 :root {
-  --font-sans: "Hanken Grotesk", sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-sans: "Be Vietnam Pro", "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Be Vietnam Pro", "Plus Jakarta Sans", "Montserrat", sans-serif;
+  --font-mono: "JetBrains Mono", "Barlow Semi Condensed", ui-monospace, SFMono-Regular, monospace;
 }
 
 @theme {
-  /* Pitch Slate Editorial Design System */
-  --color-background: #F8FAFC;
-  --color-surface: #FFFFFF;
-  --color-surface-dim: #E2E8F0;
-  --color-surface-bright: #F8FAFC;
-  --color-surface-container-lowest: #FFFFFF;
-  --color-surface-container-low: #F1F5F9;
-  --color-surface-container: #E2E8F0;
-  --color-surface-container-high: #CBD5E1;
-  --color-surface-container-highest: #94A3B8;
+  /* Pitch Stadium Design Tokens */
+  --color-pitch-dark: #0B111E;
+  --color-pitch-surface: #111A2E;
+  --color-pitch-surface-light: #18233C;
+  --color-pitch-emerald: #10B981;
+  --color-pitch-emerald-glow: #059669;
+  --color-pitch-volt: #EAB308;
+  --color-pitch-cyan: #06B6D4;
+  --color-pitch-crimson: #EF4444;
 
-  /* Typography Colors */
-  --color-on-surface: #0F172A;
-  --color-on-surface-variant: #475569;
-  --color-inverse-surface: #1E293B;
-  --color-inverse-on-surface: #F8FAFC;
-  --color-outline: #64748B;
-  --color-outline-variant: #E2E8F0;
-
-  /* Pitch Emerald Brand */
-  --color-primary: #059669;
-  --color-on-primary: #FFFFFF;
-  --color-primary-container: #047857;
-  --color-on-primary-container: #ECFDF5;
-  --color-inverse-primary: #10B981;
-
-  /* Secondary Stadium Slate */
-  --color-secondary: #0F172A;
-  --color-on-secondary: #FFFFFF;
-  --color-secondary-container: #1E293B;
-  --color-on-secondary-container: #F8FAFC;
-
-  /* Club Jerseys & Status */
-  --color-team-a: #DC2626; /* Spain Red */
-  --color-team-b: #2563EB; /* France Blue */
-  --color-team-gk: #D97706; /* Goalkeeper Gold */
-  --color-error: #DC2626;
-  --color-success: #059669;
-
-  /* Typography Fonts */
-  --font-sans: "Hanken Grotesk", sans-serif;
-  --font-headline: "Hanken Grotesk", sans-serif;
-  --font-heading: "Hanken Grotesk", sans-serif;
-  --font-body: "Hanken Grotesk", sans-serif;
-  --font-display: "Hanken Grotesk", sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  /* Typography Fonts - 100% Full Vietnamese Character Set */
+  --font-sans: "Be Vietnam Pro", "Plus Jakarta Sans", "Inter", sans-serif;
+  --font-space: "Be Vietnam Pro", "Plus Jakarta Sans", sans-serif;
+  --font-headline: "Be Vietnam Pro", "Plus Jakarta Sans", sans-serif;
+  --font-heading: "Be Vietnam Pro", "Plus Jakarta Sans", sans-serif;
+  --font-display: "Be Vietnam Pro", "Plus Jakarta Sans", "Montserrat", sans-serif;
+  --font-mono: "JetBrains Mono", "Barlow Semi Condensed", monospace;
 }
 
 @layer base {
   * {
-    border-color: #E2E8F0;
+    border-color: rgba(226, 232, 240, 0.8);
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  html, body {
-    margin: 0;
-    padding: 0;
+  html.dark * {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  html {
+    font-family: var(--font-sans);
+    font-size: 15.5px;
+    color-scheme: light dark;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  html.dark {
+    background-color: #0B111E;
+    color: #F8FAFC;
+  }
+
+  html:not(.dark) {
     background-color: #F8FAFC;
     color: #0F172A;
-    font-family: var(--font-sans);
-    min-height: 100vh;
   }
 
-  h1, h2, h3, h4, h5, h6, .font-headline, .font-heading {
+  body {
+    margin: 0;
+    padding: 0;
     font-family: var(--font-sans);
+    height: 100%;
+    overflow: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-display, .font-space, .font-headline, .font-heading {
+    font-family: "Be Vietnam Pro", "Plus Jakarta Sans", "Montserrat", sans-serif;
     letter-spacing: -0.02em;
+  }
+
+  html.dark h1, html.dark h2, html.dark h3, html.dark h4, html.dark h5, html.dark h6 {
+    color: #F8FAFC;
+  }
+
+  html:not(.dark) h1, html:not(.dark) h2, html:not(.dark) h3, html:not(.dark) h4, html:not(.dark) h5, html:not(.dark) h6 {
     color: #0F172A;
   }
-
-  p, span, div, td, th, input, select, button, textarea {
-    font-family: var(--font-sans);
-  }
-
-  code, kbd, samp, pre, .font-mono {
-    font-family: var(--font-mono);
-  }
 }
 
-/* Custom Minimalist Scrollbar */
+/* Minimalist Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #F1F5F9;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: rgba(148, 163, 184, 0.4);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: rgba(148, 163, 184, 0.7);
 }
 
-/* Material Symbols helper */
+/* Material Symbols Helper */
 .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
   vertical-align: middle;
+  font-size: 1.15rem;
 }
 .material-symbols-outlined.fill {
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
 }
 
-/* Clean Surface Classes */
-.glass-card {
-  background: #FFFFFF;
-  border: 1px solid #E2E8F8;
-  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
-}
+/* Font Family Utility Classes - All 100% Native Vietnamese Support */
+.font-vietnam { font-family: 'Be Vietnam Pro', sans-serif; }
+.font-jakarta { font-family: 'Plus Jakarta Sans', 'Be Vietnam Pro', sans-serif; }
+.font-montserrat { font-family: 'Montserrat', 'Be Vietnam Pro', sans-serif; }
+.font-barlow { font-family: 'Barlow Semi Condensed', 'Be Vietnam Pro', sans-serif; }
+.font-inter { font-family: 'Inter', 'Be Vietnam Pro', sans-serif; }
+.font-space { font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', sans-serif; }
+.font-syne { font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', sans-serif; }
+.font-outfit { font-family: 'Plus Jakarta Sans', 'Be Vietnam Pro', sans-serif; }
+.font-chivo { font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', sans-serif; }
+.font-bebas { font-family: 'Barlow Semi Condensed', 'Montserrat', 'Be Vietnam Pro', sans-serif; }
+.font-dm { font-family: 'Be Vietnam Pro', 'Inter', sans-serif; }
 
-.glass-modal {
-  background: #FFFFFF;
-  border: 1px solid #E2E8F8;
-  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
-}
+/* ========================================================================= */
+/* SELECTED USER PRESETS (Compact 30-40% Dense Professional): 
+   - Button: Kiểu 2 (Modern Glassmorphic Pill)
+   - Input: Kiểu 5 (Minimalist Bottom Beam)
+   - Card: Kiểu 1 (Bento Glass Card)
+   - Tabs: Kiểu 2 (Neon Underline Glow)
+   - Toggles: Kiểu 1 (Neon Glow Switch)
+   - Badges: Kiểu 4 (High-Contrast Score & Tag)
+/* ========================================================================= */
 
-/* Athletic Button Physics */
-.btn-athletic {
+/* 1. BUTTON KIỂU 2: Modern Glassmorphic Pill (Compact) */
+.btn-glass-pill {
   position: relative;
-  overflow: hidden;
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 700;
+  font-size: 0.775rem;
+  padding: 0.375rem 0.875rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  user-select: none;
 }
-.btn-athletic:active {
+.btn-glass-pill:active {
   transform: scale(0.97);
 }
+
+.btn-glass-primary {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95));
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 10px 0 rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.btn-glass-primary:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 1), rgba(4, 120, 87, 1));
+  box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-glass-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #F8FAFC;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+html:not(.dark) .btn-glass-secondary {
+  background: rgba(241, 245, 249, 0.85);
+  color: #0F172A;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+}
+.btn-glass-secondary:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+html:not(.dark) .btn-glass-secondary:hover {
+  background: rgba(226, 232, 240, 1);
+  border-color: rgba(148, 163, 184, 0.6);
+}
+
+/* 2. INPUT KIỂU 5: Minimalist Bottom Beam (Compact) */
+.input-beam-wrapper {
+  position: relative;
+  width: 100%;
+}
+.input-bottom-beam {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid rgba(148, 163, 184, 0.3);
+  padding: 0.375rem 0.2rem;
+  font-family: 'Be Vietnam Pro', 'Inter', sans-serif;
+  font-size: 0.8rem;
+  color: inherit;
+  transition: all 0.25s ease;
+}
+.input-bottom-beam:focus {
+  outline: none;
+  border-bottom-color: #10B981;
+  box-shadow: 0 3px 8px -2px rgba(16, 185, 129, 0.3);
+}
+html.dark .input-bottom-beam::placeholder {
+  color: rgba(148, 163, 184, 0.5);
+}
+html:not(.dark) .input-bottom-beam::placeholder {
+  color: rgba(100, 116, 139, 0.6);
+}
+
+/* 3. CARD KIỂU 1: Bento Glass Card (Compact & Dense) */
+.bento-glass-card {
+  position: relative;
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+html.dark .bento-glass-card {
+  background: linear-gradient(135deg, rgba(17, 26, 46, 0.85), rgba(11, 17, 30, 0.85));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 18px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.15);
+}
+html:not(.dark) .bento-glass-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 6px 10px -2px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.02);
+}
+.bento-glass-card:hover {
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 12px 20px -8px rgba(16, 185, 129, 0.15);
+}
+
+/* 4. TABS KIỂU 2: Neon Underline Glow (Compact) */
+.tab-neon-btn {
+  position: relative;
+  padding: 0.35rem 0.75rem;
+  font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 700;
+  font-size: 0.775rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  color: #94A3B8;
+}
+.tab-neon-btn:hover {
+  color: #F8FAFC;
+}
+html:not(.dark) .tab-neon-btn:hover {
+  color: #0F172A;
+}
+.tab-neon-btn.active {
+  color: #10B981;
+}
+.tab-neon-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  border-radius: 9999px;
+  background: #10B981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.8), 0 0 16px rgba(16, 185, 129, 0.4);
+}
+
+/* 5. TOGGLE KIỂU 1: Neon Glow Switch (Compact) */
+.switch-neon-track {
+  width: 2.25rem;
+  height: 1.2rem;
+  border-radius: 9999px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  padding: 2px;
+}
+.switch-neon-track.active {
+  background: linear-gradient(90deg, #10B981, #059669);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
+}
+.switch-neon-track.inactive {
+  background: rgba(148, 163, 184, 0.2);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+.switch-neon-thumb {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 9999px;
+  background: #FFFFFF;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.switch-neon-track.active .switch-neon-thumb {
+  transform: translateX(1.05rem);
+}
+.switch-neon-track.inactive .switch-neon-thumb {
+  transform: translateX(0);
+}
+
+/* 6. BADGE KIỂU 4: High-Contrast Score (Compact) */
+.badge-score-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  font-family: 'JetBrains Mono', 'Barlow Semi Condensed', monospace;
+  font-weight: 700;
+  font-size: 0.675rem;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Shimmer Keyframe */
+@keyframes shimmerSweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.animate-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.animate-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  transform: translateX(-100%);
+  animation: shimmerSweep 2.5s infinite;
+}
+
+/* Pitch & Carbon Patterns */
+.bg-carbon {
+  background-color: #0b111e;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 0);
+  background-size: 16px 16px;
+}
+
+/* ========================================================================= */
+/* GLOBAL DROPDOWN ELEVATION & STACKING CONTEXT FIX */
+/* ========================================================================= */
+:is(div, section, article, aside, .bento-glass-card):has([data-dropdown-open="true"]) {
+  z-index: 40 !important;
+  position: relative;
+}
+
+[data-dropdown-open="true"] {
+  z-index: 50 !important;
+}
+

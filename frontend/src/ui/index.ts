@@ -8,3 +8,6 @@ export * from './Avatar';
 export * from './Skeleton';
 export * from './IconButton';
 export * from './ConnectionBanner';
+export * from './Toggle';
+export * from './Tabs';
+export * from './Breadcrumbs';

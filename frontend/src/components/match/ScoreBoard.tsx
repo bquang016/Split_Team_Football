@@ -1,5 +1,6 @@
 import React from 'react';
 import { TEAM_A_COLOR, TEAM_A_NAME, TEAM_B_COLOR, TEAM_B_NAME } from '../../utils/constants';
+import { Badge } from '../../ui';
 
 interface ScoreBoardProps {
   scoreTeamA: number;
@@ -17,58 +18,63 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
   isLive,
 }) => {
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-6 sm:p-8 shadow-sm">
-      {/* Subtle Team Color Highlights */}
+    <div className="relative overflow-hidden rounded-2xl bento-glass-card !p-5 sm:!p-7 shadow-xl">
+      {/* Stadium Team Glow Highlights */}
       <div
-        className="absolute top-0 left-0 w-1/3 h-full opacity-5 blur-3xl pointer-events-none"
+        className="absolute -top-10 -left-10 w-40 h-40 opacity-20 blur-3xl rounded-full pointer-events-none"
         style={{ backgroundColor: TEAM_A_COLOR }}
       />
       <div
-        className="absolute top-0 right-0 w-1/3 h-full opacity-5 blur-3xl pointer-events-none"
+        className="absolute -top-10 -right-10 w-40 h-40 opacity-20 blur-3xl rounded-full pointer-events-none"
         style={{ backgroundColor: TEAM_B_COLOR }}
       />
 
       {isLive && (
-        <div className="flex justify-center mb-5">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-mono font-bold animate-pulse shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+        <div className="flex justify-center mb-4">
+          <Badge variant="live" size="sm" dot>
             ĐANG THI ĐẤU TRỰC TIẾP (7v7)
-          </span>
+          </Badge>
         </div>
       )}
 
-      <div className="grid grid-cols-3 items-center text-center">
+      <div className="grid grid-cols-3 items-center text-center relative z-10">
         {/* Team A */}
         <div className="flex flex-col items-center gap-2.5">
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-md font-black text-2xl font-heading transition-transform hover:scale-105"
+            className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-md font-black text-lg font-space transition-transform hover:scale-105 border border-white/20"
             style={{ backgroundColor: TEAM_A_COLOR }}
           >
             A
           </div>
           <div>
-            <h4 className="font-heading font-black text-base sm:text-xl text-slate-900">
+            <h4 className="font-space font-black text-base sm:text-lg text-slate-900 dark:text-white">
               {TEAM_A_NAME}
             </h4>
-            <span className="inline-block mt-0.5 px-2 py-0.5 rounded-md bg-red-50 text-red-700 font-mono text-xs font-bold border border-red-200">
+            <Badge variant="teamA" size="sm" className="mt-1">
               Áo Đỏ
-            </span>
+            </Badge>
             {hostAName && (
-              <p className="text-xs text-slate-500 mt-1.5 font-medium">
-                Đội trưởng: <span className="text-slate-900 font-bold">{hostAName}</span>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 font-space">
+                Cơ trưởng: <strong className="text-slate-900 dark:text-slate-100">{hostAName}</strong>
               </p>
             )}
           </div>
         </div>
 
-        {/* Score Display */}
+        {/* Score Display (Cyber Scoreboard Impact) */}
         <div className="flex flex-col items-center justify-center">
-          <div className="flex items-center gap-3 sm:gap-6 font-heading font-black text-5xl sm:text-7xl">
-            <span className="text-[#DC2626] drop-shadow-xs">{scoreTeamA}</span>
-            <span className="text-slate-300 text-3xl sm:text-5xl font-light">-</span>
-            <span className="text-[#2563EB] drop-shadow-xs">{scoreTeamB}</span>
+          <div className="flex items-center gap-3 sm:gap-5 font-space font-black text-5xl sm:text-6xl tracking-tight">
+            <span className="text-rose-500 drop-shadow-[0_0_16px_rgba(244,63,94,0.4)]">
+              {scoreTeamA}
+            </span>
+            <span className="text-slate-400 dark:text-slate-600 text-3xl sm:text-4xl font-light select-none">
+              :
+            </span>
+            <span className="text-blue-500 drop-shadow-[0_0_16px_rgba(59,130,246,0.4)]">
+              {scoreTeamB}
+            </span>
           </div>
-          <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest mt-2">
+          <span className="text-[11px] font-space font-extrabold text-emerald-500 uppercase tracking-widest mt-2 bg-emerald-500/10 px-3 py-0.5 rounded-full border border-emerald-500/30">
             Tỉ số trận đấu
           </span>
         </div>
@@ -76,21 +82,21 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
         {/* Team B */}
         <div className="flex flex-col items-center gap-2.5">
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-md font-black text-2xl font-heading transition-transform hover:scale-105"
+            className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-md font-black text-lg font-space transition-transform hover:scale-105 border border-white/20"
             style={{ backgroundColor: TEAM_B_COLOR }}
           >
             B
           </div>
           <div>
-            <h4 className="font-heading font-black text-base sm:text-xl text-slate-900">
+            <h4 className="font-space font-black text-base sm:text-lg text-slate-900 dark:text-white">
               {TEAM_B_NAME}
             </h4>
-            <span className="inline-block mt-0.5 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-mono text-xs font-bold border border-blue-200">
+            <Badge variant="teamB" size="sm" className="mt-1">
               Áo Xanh
-            </span>
+            </Badge>
             {hostBName && (
-              <p className="text-xs text-slate-500 mt-1.5 font-medium">
-                Đội trưởng: <span className="text-slate-900 font-bold">{hostBName}</span>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 font-space">
+                Cơ trưởng: <strong className="text-slate-900 dark:text-slate-100">{hostBName}</strong>
               </p>
             )}
           </div>

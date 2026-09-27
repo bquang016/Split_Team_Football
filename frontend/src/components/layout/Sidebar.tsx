@@ -2,60 +2,56 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAuthStore } from '../../store/authStore';
+import { useThemeStore } from '../../store/themeStore';
+import { Toggle } from '../../ui';
 import toast from 'react-hot-toast';
 
 export const Sidebar: React.FC = () => {
   const { user, isAdmin, toggleAdminMode } = useAuthStore();
+  const { theme } = useThemeStore();
   const adminActive = isAdmin();
 
-  const navItems = [
+  const navItems: { to: string; label: string; icon: string; exact?: boolean; isHighlight?: boolean }[] = [
     { to: '/', label: 'Trang chủ', icon: 'stadium', exact: true },
     { to: '/matches', label: 'Lịch & Trận đấu', icon: 'calendar_month' },
     { to: '/leaderboard', label: 'Bảng xếp hạng', icon: 'leaderboard' },
+    { to: '/match-history', label: 'Lịch sử đấu', icon: 'history' },
     { to: '/players', label: 'Cầu thủ & Đội hình', icon: 'groups' },
   ];
 
   if (adminActive) {
-    navItems.push({ to: '/admin', label: 'Quản trị giải', icon: 'shield_person', exact: false });
+    navItems.push({ to: '/admin', label: 'Duyệt người dùng', icon: 'shield_person', exact: false });
   }
 
   const handleToggleAdmin = () => {
     toggleAdminMode();
     const nextState = !adminActive;
     if (nextState) {
-      toast.success('Đã kích hoạt chế độ Quản trị viên (Admin)');
+      toast.success('Đã kích hoạt quyền Quản trị viên (Admin)');
     } else {
-      toast('Đã chuyển về chế độ Xem Thành viên (Viewer)', { icon: '👀' });
+      toast.success('Đã chuyển về chế độ Xem Thành viên');
     }
   };
 
   const displayName = user?.fullName || 'Hùng Nguyễn';
-  const roleLabel = adminActive ? 'Đội trưởng A • Admin Live' : 'Thành viên CLB';
+  const roleLabel = adminActive ? 'Đội trưởng • Admin Live' : 'Thành viên CLB';
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-200 min-h-[calc(100vh-65px)] z-30 flex-shrink-0 justify-between shadow-2xs">
-      <div className="flex flex-col">
-        {/* Brand Header */}
-        <div className="px-5 py-4 flex items-center gap-3 border-b border-slate-100">
-          <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-headline font-black shadow-xs shrink-0">
-            <span className="material-symbols-outlined text-xl">sports_soccer</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="font-headline font-extrabold text-base tracking-tight text-slate-900 leading-snug">
-              ChiMocCanh
-            </span>
-            <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">
-              Saigon Sunday League
-            </span>
-          </div>
-        </div>
-
+    <aside
+      className={clsx(
+        'hidden lg:flex flex-col w-64 h-full border-r z-30 flex-shrink-0 justify-between transition-colors duration-300 select-none',
+        theme === 'dark'
+          ? 'bg-[#0E1626]/70 backdrop-blur-2xl border-slate-800/80'
+          : 'bg-white/80 backdrop-blur-2xl border-slate-200/90 shadow-2xs'
+      )}
+    >
+      <div className="flex flex-col flex-1 overflow-y-auto scrollbar-none">
         {/* Navigation Menu */}
         <div className="px-3 py-4">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">
+          <div className="text-xs font-bold font-space text-slate-400 dark:text-slate-500 uppercase tracking-wider px-3 mb-2.5">
             Quản lý thi đấu
           </div>
-          <nav className="flex flex-col gap-1">
+          <nav className="flex flex-col gap-1.5">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
@@ -63,10 +59,10 @@ export const Sidebar: React.FC = () => {
                 end={item.exact}
                 className={({ isActive }) =>
                   clsx(
-                    'flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
+                    'flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-space font-bold transition-all duration-200',
                     isActive
-                      ? 'bg-emerald-50 text-emerald-800 font-semibold border-l-4 border-emerald-600'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      ? 'bg-gradient-to-r from-emerald-600/20 to-teal-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/60 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
                   )
                 }
               >
@@ -75,16 +71,25 @@ export const Sidebar: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <span
                         className={clsx(
-                          'material-symbols-outlined text-xl',
-                          isActive ? 'text-emerald-600' : 'text-slate-500'
+                          'material-symbols-outlined text-xl transition-colors',
+                          isActive
+                            ? 'text-emerald-500 dark:text-emerald-400'
+                            : 'text-slate-400 dark:text-slate-500'
                         )}
                       >
                         {item.icon}
                       </span>
-                      <span>{item.label}</span>
+                      <span className="flex items-center gap-2">
+                        {item.label}
+                        {item.isHighlight && (
+                          <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 rounded-full shadow-2xs animate-pulse">
+                            UI/UX
+                          </span>
+                        )}
+                      </span>
                     </div>
                     {isActive && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                     )}
                   </>
                 )}
@@ -94,51 +99,45 @@ export const Sidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* Admin Status Toggle & User Profile in Sidebar */}
-      <div className="p-3 border-t border-slate-100 flex flex-col gap-2.5 bg-slate-50/60">
+      {/* Admin Status Toggle & User Profile in Sidebar - Fixed at bottom of screen */}
+      <div className="p-3.5 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2.5 flex-shrink-0 bg-inherit backdrop-blur-xl">
         {/* Admin Mode Switch Pill */}
-        <div className="bg-white border border-slate-200 rounded-lg p-2.5 flex items-center justify-between shadow-2xs">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-600 text-base">shield_person</span>
+        <div
+          className={clsx(
+            'rounded-2xl p-2.5 flex items-center justify-between border transition-all',
+            theme === 'dark'
+              ? 'bg-slate-900/60 border-slate-800'
+              : 'bg-slate-50 border-slate-200/80 shadow-2xs'
+          )}
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="material-symbols-outlined text-emerald-500 text-lg">
+              shield_person
+            </span>
             <div className="flex flex-col">
-              <span className="text-xs font-semibold text-slate-800">Quyền Admin</span>
+              <span className="text-xs font-bold font-space text-slate-800 dark:text-slate-200">
+                Quyền Admin
+              </span>
               <span className="text-[10px] text-slate-400">Ban cán sự CLB</span>
             </div>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={adminActive}
-            onClick={handleToggleAdmin}
-            className={clsx(
-              'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none',
-              adminActive ? 'bg-emerald-600' : 'bg-slate-300'
-            )}
-            title="Chuyển chế độ Admin"
-          >
-            <span
-              className={clsx(
-                'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                adminActive ? 'translate-x-4' : 'translate-x-0'
-              )}
-            />
-          </button>
+          <Toggle checked={adminActive} onChange={handleToggleAdmin} />
         </div>
 
         {/* Current User Card */}
-        <div className="flex items-center justify-between pt-1 px-1">
+        <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center ring-1 ring-slate-200">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 text-white font-space font-bold text-xs flex items-center justify-center ring-1 ring-emerald-500/40 shadow-2xs">
                 {displayName.charAt(0).toUpperCase()}
               </div>
-              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-bold text-slate-900 leading-tight">
+              <span className="text-xs font-bold font-space text-slate-900 dark:text-white leading-tight">
                 {displayName}
               </span>
-              <span className="text-[10px] font-medium text-slate-500">
+              <span className="text-[10px] font-medium text-slate-400">
                 {roleLabel}
               </span>
             </div>
@@ -146,9 +145,9 @@ export const Sidebar: React.FC = () => {
           <button
             type="button"
             aria-label="Cài đặt"
-            className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
-            <span className="material-symbols-outlined text-base">tune</span>
+            <span className="material-symbols-outlined text-lg">tune</span>
           </button>
         </div>
       </div>

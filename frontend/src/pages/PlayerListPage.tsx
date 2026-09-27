@@ -36,49 +36,51 @@ export const PlayerListPage: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-6 max-w-7xl mx-auto font-sans">
       {/* Header Bar */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-              Đội hình CLB
-            </span>
-            <span className="text-xs text-slate-400 font-medium">Saigon Sunday League</span>
+      <Card elevation="glass" glow className="p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          <div>
+            <div className="flex items-center gap-2">
+              <Badge variant="primary" dot size="sm">
+                Đội hình CLB
+              </Badge>
+              <span className="text-xs text-slate-400 font-space font-medium">Saigon Sunday League</span>
+            </div>
+            <h1 className="font-space font-black text-2xl sm:text-3xl text-slate-900 dark:text-white mt-2 tracking-tight">
+              Danh Sách Cầu Thủ
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Tổng cộng <strong className="text-slate-900 dark:text-slate-100">{players.length}</strong> cầu thủ chính thức và ban cán sự đang hoạt động.
+            </p>
           </div>
-          <h1 className="font-headline font-black text-2xl sm:text-3xl text-slate-900 mt-1">
-            Danh Sách Cầu Thủ
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Tổng cộng {players.length} cầu thủ chính thức và ban cán sự đang hoạt động.
-          </p>
-        </div>
 
-        <div className="w-full sm:w-72">
-          <Input
-            placeholder="Tìm theo tên hoặc số áo..."
-            leftIcon="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <div className="w-full sm:w-72">
+            <Input
+              placeholder="Tìm theo tên hoặc số áo..."
+              leftIcon="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onClear={() => setSearch('')}
+            />
+          </div>
         </div>
-      </div>
+      </Card>
 
       {loading ? (
         <div className="py-20 text-center text-sm text-slate-500">
-          <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           Đang tải danh sách cầu thủ...
         </div>
       ) : filteredPlayers.length === 0 ? (
         <Card elevation="level1" className="py-12 text-center text-sm text-slate-400 italic">
-          Không tìm thấy cầu thủ nào
+          Không tìm thấy cầu thủ nào phù hợp
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filteredPlayers.map((player) => (
             <Link key={player.id} to={`/players/${player.id}`}>
-              <Card hoverable className="flex items-center gap-3.5 p-4 group">
+              <Card hoverable elevation="level1" className="flex items-center gap-3.5 p-4 group">
                 <Avatar
                   name={player.fullName}
                   jerseyNumber={player.jerseyNumber}
@@ -86,21 +88,24 @@ export const PlayerListPage: React.FC = () => {
                   showNumber
                 />
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-headline font-bold text-sm text-slate-900 truncate group-hover:text-emerald-700 transition-colors">
+                  <h4 className="font-space font-black text-sm text-slate-900 dark:text-white truncate group-hover:text-emerald-500 transition-colors">
                     {player.fullName}
                   </h4>
-                  <p className="text-xs text-slate-400 font-mono truncate">
+                  <p className="text-xs text-slate-400 dark:text-slate-500 font-space truncate">
                     @{player.username}
                   </p>
                   <div className="mt-1.5 flex items-center gap-1.5">
                     {player.jerseyNumber && (
-                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
+                      <Badge variant="gold" size="sm">
                         #{player.jerseyNumber}
-                      </span>
+                      </Badge>
                     )}
-                    {player.role === 'ADMIN' && (
-                      <Badge variant="teamA" size="sm">Admin</Badge>
-                    )}
+                    <Badge
+                      variant={player.role === 'ADMIN' ? 'primary' : 'neutral'}
+                      size="sm"
+                    >
+                      {player.role === 'ADMIN' ? 'Admin' : 'Cầu thủ'}
+                    </Badge>
                   </div>
                 </div>
               </Card>

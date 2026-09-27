@@ -21,6 +21,7 @@ public class PlayerStatsDto {
     private Team team;
     private Integer goals;
     private Integer assists;
+    private Integer saves;
     private Boolean isWinner;
     private Boolean isMvp;
     private UserDto enteredBy;
@@ -35,6 +36,7 @@ public class PlayerStatsDto {
                 .team(stats.getTeam())
                 .goals(stats.getGoals())
                 .assists(stats.getAssists())
+                .saves(stats.getSaves())
                 .isWinner(stats.getIsWinner())
                 .isMvp(stats.getIsMvp())
                 .enteredBy(UserDto.fromEntity(stats.getEnteredBy()))

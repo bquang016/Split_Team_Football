@@ -28,6 +28,13 @@ public class SpinController {
         return ResponseEntity.ok(ApiResponse.ok("Bắt đầu quay chọn đội trưởng", session));
     }
 
+    @PostMapping("/round-pick")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<SpinSessionDto>> spinRoundPick(@PathVariable UUID id) {
+        SpinSessionDto session = spinService.spinRoundPick(id);
+        return ResponseEntity.ok(ApiResponse.ok("Quay lượt chọn cầu thủ thành công", session));
+    }
+
     @GetMapping("/latest")
     public ResponseEntity<ApiResponse<SpinSessionDto>> getLatestSpin(@PathVariable UUID id) {
         SpinSessionDto session = spinService.getLatestSpin(id);

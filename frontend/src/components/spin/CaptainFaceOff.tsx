@@ -64,8 +64,8 @@ export const CaptainFaceOff: React.FC<CaptainFaceOffProps> = ({
             </div>
           )}
           {winner?.id === hostA?.id && (
-            <span className="mt-3 px-3 py-1 rounded-full bg-amber-500 text-slate-950 font-mono font-bold text-xs uppercase animate-bounce shadow-md">
-              ★ Thắng quay — Chọn trước
+            <span className="mt-3 px-3 py-1 rounded-full bg-amber-500 text-slate-950 font-mono font-bold text-xs uppercase shadow-md">
+              Thắng quay - Chọn trước
             </span>
           )}
         </div>
@@ -96,8 +96,8 @@ export const CaptainFaceOff: React.FC<CaptainFaceOffProps> = ({
             </div>
           )}
           {winner?.id === hostB?.id && (
-            <span className="mt-3 px-3 py-1 rounded-full bg-amber-500 text-slate-950 font-mono font-bold text-xs uppercase animate-bounce shadow-md">
-              ★ Thắng quay — Chọn trước
+            <span className="mt-3 px-3 py-1 rounded-full bg-amber-500 text-slate-950 font-mono font-bold text-xs uppercase shadow-md">
+              Thắng quay - Chọn trước
             </span>
           )}
         </div>

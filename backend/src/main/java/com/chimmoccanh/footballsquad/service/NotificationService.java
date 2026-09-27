@@ -39,6 +39,11 @@ public class NotificationService {
         messagingTemplate.convertAndSend(destination, payload);
     }
 
+    public void broadcastTradeEvent(UUID matchId, Object payload) {
+        String destination = "/topic/match/" + matchId + "/trade";
+        messagingTemplate.convertAndSend(destination, payload);
+    }
+
     public void broadcastMatchesList(Object payload) {
         messagingTemplate.convertAndSend("/topic/matches", payload);
     }
