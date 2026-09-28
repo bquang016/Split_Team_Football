@@ -1,5 +1,6 @@
 package com.chimmoccanh.footballsquad.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -14,6 +15,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class LeaderboardCache {
 
     @Id
@@ -21,7 +23,7 @@ public class LeaderboardCache {
     private UUID userId;
 
     @OneToOne(fetch = FetchType.EAGER)
-    @PrimaryKeyJoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private User user;
 
     @Column(name = "total_goals")

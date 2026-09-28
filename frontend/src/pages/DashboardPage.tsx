@@ -37,19 +37,22 @@ export const DashboardPage: React.FC = () => {
     fetchData();
   }, []);
 
+  const todayStr = new Date().toISOString().split('T')[0];
+
   // Filter categorized matches
   const liveMatches = matches.filter((m) => m.status === 'IN_PROGRESS');
   const upcomingMatches = matches.filter(
     (m) =>
-      m.status === 'PENDING' ||
-      m.status === 'JERSEY_SELECTION' ||
-      m.status === 'PLAYER_PICKING' ||
-      m.status === 'TRADE_WINDOW'
+      (m.status === 'PENDING' ||
+        m.status === 'JERSEY_SELECTION' ||
+        m.status === 'PLAYER_PICKING' ||
+        m.status === 'TRADE_WINDOW') &&
+      m.matchDate >= todayStr
   );
   const completedMatches = matches.filter((m) => m.status === 'COMPLETED');
 
-  // Next primary upcoming match
-  const nextMatch = upcomingMatches[0] || liveMatches[0];
+  // Next primary upcoming match (focus on live or nearest future match)
+  const nextMatch = liveMatches[0] || upcomingMatches[0];
 
   // User's personal stats in the leaderboard
   const myStats = leaderboard.find((item) => item.user.id === user?.id);
@@ -70,11 +73,16 @@ export const DashboardPage: React.FC = () => {
   const topWinner = [...leaderboard].sort((a, b) => b.totalWins - a.totalWins)[0];
 
   const hasJoinedNextMatch = nextMatch?.participants?.some((p) => p.user.id === user?.id);
+  const isNextMatchPast =
+    nextMatch &&
+    (nextMatch.matchDate < todayStr ||
+      (nextMatch.matchTime &&
+        new Date(`${nextMatch.matchDate}T${nextMatch.matchTime}`).getTime() < Date.now()));
 
   const handleJoinNextMatch = async () => {
     if (!nextMatch || !user) return;
-    if (nextMatch.status !== 'PENDING') {
-      toast.error('Trận đấu đã bắt đầu hoặc đã qua giai đoạn điểm danh');
+    if (nextMatch.status !== 'PENDING' || isNextMatchPast) {
+      toast.error('Trận đấu đã bắt đầu hoặc đã qua thời gian điểm danh');
       return;
     }
     try {
@@ -113,7 +121,7 @@ export const DashboardPage: React.FC = () => {
 
           <div className="flex items-center gap-3">
             {user && (
-              <Link to="/history">
+              <Link to="/match-history">
                 <Button variant="secondary" size="md" leftIcon="history">
                   Lịch sử đấu
                 </Button>
@@ -154,7 +162,7 @@ export const DashboardPage: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <Link to="/history">
+              <Link to="/match-history">
                 <Button size="sm" variant="secondary" rightIcon="arrow_forward">
                   Xem chi tiết lịch sử đấu
                 </Button>

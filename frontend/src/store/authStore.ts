@@ -8,7 +8,8 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (token: string, refreshToken: string, user: User) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
+  quickLogin: (userId: string) => Promise<boolean>;
   checkAuth: () => Promise<void>;
   isAdmin: () => boolean;
   toggleAdminMode: () => void;
@@ -34,11 +35,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ token, user, isAuthenticated: true });
   },
 
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    set({ token: null, user: null, isAuthenticated: false });
+  logout: async () => {
+    try {
+      await authService.logout();
+    } catch {
+      // Ignore network errors on logout
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      set({ token: null, user: null, isAuthenticated: false });
+    }
+  },
+
+  quickLogin: async (userId: string) => {
+    try {
+      const res = await authService.quickLogin(userId);
+      if (res.success && res.data) {
+        const { accessToken, refreshToken, user } = res.data;
+        localStorage.setItem('token', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('user', JSON.stringify(user));
+        set({ token: accessToken, user, isAuthenticated: true });
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
   },
 
   checkAuth: async () => {

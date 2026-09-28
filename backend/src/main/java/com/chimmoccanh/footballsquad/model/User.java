@@ -1,5 +1,6 @@
 package com.chimmoccanh.footballsquad.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.chimmoccanh.footballsquad.model.enums.UserRole;
 import com.chimmoccanh.footballsquad.model.enums.UserStatus;
 import jakarta.persistence.*;
@@ -16,6 +17,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
 
     @Id

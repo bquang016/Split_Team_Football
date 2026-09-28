@@ -31,12 +31,18 @@ public class MatchDto {
     private LocalDateTime aiAnalyzedAt;
     private String notes;
     private String jerseyWinnerTeam;    // "SPAIN" hoặc "FRANCE"
+    private String firstPickTeam;       // "A" hoặc "B"
+    private LocalDateTime pickTurnStartedAt;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
     private LocalDateTime createdAt;
+    private boolean isDeleted;
+    private LocalDateTime deletedAt;
+    private UserDto deletedBy;
 
     private List<MatchParticipantDto> participants;
     private List<MatchLineupDto> lineups;
+    private List<MatchGoalDto> goals;
     private SpinSessionDto spinSession;
 
     public static MatchDto fromEntity(Match match) {
@@ -55,8 +61,13 @@ public class MatchDto {
                 .aiAnalyzedAt(match.getAiAnalyzedAt())
                 .notes(match.getNotes())
                 .jerseyWinnerTeam(match.getJerseyWinnerTeam())
+                .firstPickTeam(match.getFirstPickTeam())
+                .pickTurnStartedAt(match.getPickTurnStartedAt())
                 .startAt(match.getStartAt())
                 .endAt(match.getEndAt())
+                .isDeleted(match.isDeleted())
+                .deletedAt(match.getDeletedAt())
+                .deletedBy(UserDto.fromEntity(match.getDeletedBy()))
                 .createdAt(match.getCreatedAt())
                 .build();
     }

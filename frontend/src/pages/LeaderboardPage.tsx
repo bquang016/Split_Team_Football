@@ -722,7 +722,7 @@ export const LeaderboardPage: React.FC = () => {
                               : 'text-amber-500'
                           )}
                         >
-                          <span className="text-xs">★</span>
+                          <span className="material-symbols-outlined text-sm">star</span>
                           <span>{item.totalMvp || item.mvpCount}</span>
                         </div>
                       </td>

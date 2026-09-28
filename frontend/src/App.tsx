@@ -69,6 +69,7 @@ export const App: React.FC = () => {
           <Route path="/matches/:id/lineup" element={<LineupPage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/match-history" element={<MatchHistoryPage />} />
+          <Route path="/history" element={<MatchHistoryPage />} />
           <Route path="/players" element={<PlayerListPage />} />
           <Route path="/players/:id" element={<PlayerProfilePage />} />
 

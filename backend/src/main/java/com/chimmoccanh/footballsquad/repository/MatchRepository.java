@@ -14,16 +14,20 @@ import java.util.UUID;
 
 @Repository
 public interface MatchRepository extends JpaRepository<Match, UUID> {
-    List<Match> findAllByOrderByMatchDateDescCreatedAtDesc();
+    List<Match> findByIsDeletedFalseOrderByMatchDateDescCreatedAtDesc();
+
+    List<Match> findByIsDeletedTrueOrderByDeletedAtDesc();
+
+    Optional<Match> findByIdAndIsDeletedFalse(UUID id);
     
-    @Query("SELECT m FROM Match m WHERE m.matchDate BETWEEN :startDate AND :endDate ORDER BY m.matchDate ASC, m.matchTime ASC")
+    @Query("SELECT m FROM Match m WHERE m.isDeleted = false AND m.matchDate BETWEEN :startDate AND :endDate ORDER BY m.matchDate ASC, m.matchTime ASC")
     List<Match> findMatchesBetweenDates(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
-    List<Match> findByStatus(MatchStatus status);
+    List<Match> findByIsDeletedFalseAndStatus(MatchStatus status);
 
-    @Query("SELECT m FROM Match m WHERE m.status IN :statuses ORDER BY m.matchDate DESC")
+    @Query("SELECT m FROM Match m WHERE m.isDeleted = false AND m.status IN :statuses ORDER BY m.matchDate DESC")
     List<Match> findByStatusIn(@Param("statuses") List<MatchStatus> statuses);
 
-    @Query("SELECT m FROM Match m ORDER BY m.matchDate DESC LIMIT 1")
+    @Query("SELECT m FROM Match m WHERE m.isDeleted = false ORDER BY m.matchDate DESC LIMIT 1")
     Optional<Match> findLatestMatch();
 }

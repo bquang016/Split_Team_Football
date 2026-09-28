@@ -18,4 +18,10 @@ public class CreateMatchRequest {
     private String location;
 
     private String notes;
+
+    private com.chimmoccanh.footballsquad.model.enums.MatchStatus initialStatus;
+
+    private Integer initialScoreTeamA;
+
+    private Integer initialScoreTeamB;
 }

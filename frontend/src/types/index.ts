@@ -89,6 +89,9 @@ export interface Match {
   scoreTeamB: number;
   // Bước 2: Áo đấu đã chọn
   jerseyWinnerTeam?: JerseyTeam | null; // "SPAIN" hoặc "FRANCE"
+  // Bước 3: Đội thắng quay lượt chọn đầu & thời điểm bắt đầu lượt
+  firstPickTeam?: 'A' | 'B' | null;
+  pickTurnStartedAt?: string | null;
   // Timeline
   startAt?: string;    // Khi IN_PROGRESS bắt đầu
   endAt?: string;      // Khi COMPLETED
@@ -96,9 +99,24 @@ export interface Match {
   aiAnalyzedAt?: string;
   notes?: string;
   createdAt: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
+  deletedBy?: User;
   participants?: MatchParticipant[];
   lineups?: MatchLineup[];
+  goals?: MatchGoal[];
   spinSession?: SpinSession;
+}
+
+export interface MatchGoal {
+  id: string;
+  matchId: string;
+  scorer: User;
+  assist?: User;
+  team: Team;
+  minute: number;
+  goalCount: number;
+  createdAt: string;
 }
 
 export interface PlayerStats {

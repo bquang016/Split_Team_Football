@@ -3,10 +3,12 @@ package com.chimmoccanh.footballsquad.service;
 import com.chimmoccanh.footballsquad.dto.request.PlayerStatItemDto;
 import com.chimmoccanh.footballsquad.dto.request.RecordStatsRequest;
 import com.chimmoccanh.footballsquad.dto.response.PlayerStatsDto;
+import com.chimmoccanh.footballsquad.exception.BadRequestException;
 import com.chimmoccanh.footballsquad.exception.ResourceNotFoundException;
 import com.chimmoccanh.footballsquad.model.Match;
 import com.chimmoccanh.footballsquad.model.PlayerStats;
 import com.chimmoccanh.footballsquad.model.User;
+import com.chimmoccanh.footballsquad.model.enums.MatchStatus;
 import com.chimmoccanh.footballsquad.repository.MatchRepository;
 import com.chimmoccanh.footballsquad.repository.PlayerStatsRepository;
 import com.chimmoccanh.footballsquad.repository.UserRepository;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -34,8 +37,23 @@ public class StatsService {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
 
-        List<PlayerStats> savedStatsList = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
+        boolean isCompleted = match.getStatus() == MatchStatus.COMPLETED;
+        boolean isTwoHoursPassed = false;
+
+        if (match.getStartAt() != null) {
+            isTwoHoursPassed = match.getStartAt().plusHours(2).isBefore(now);
+        } else if (match.getMatchDate() != null) {
+            LocalTime time = match.getMatchTime() != null ? match.getMatchTime() : LocalTime.MIDNIGHT;
+            LocalDateTime scheduledStart = LocalDateTime.of(match.getMatchDate(), time);
+            isTwoHoursPassed = scheduledStart.plusHours(2).isBefore(now);
+        }
+
+        if (!isCompleted && !isTwoHoursPassed) {
+            throw new BadRequestException("Không thể nhập thống kê trước khi trận đấu kết thúc (sau 2 tiếng kể từ khi bắt đầu)");
+        }
+
+        List<PlayerStats> savedStatsList = new ArrayList<>();
 
         for (PlayerStatItemDto item : request.getStats()) {
             User player = userRepository.findById(item.getUserId())

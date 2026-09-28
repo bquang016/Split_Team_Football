@@ -28,7 +28,7 @@ export interface SelectProps {
 export const Select: React.FC<SelectProps> = ({
   label,
   error,
-  options,
+  options = [],
   value,
   defaultValue,
   placeholder = 'Chọn một mục...',
@@ -44,21 +44,27 @@ export const Select: React.FC<SelectProps> = ({
   );
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const safeOptions = Array.isArray(options) ? options : [];
   const currentValue = value !== undefined ? value : internalValue;
-  const selectedOption = options.find((opt) => String(opt.value) === String(currentValue));
+  const selectedOption = safeOptions.find((opt) => String(opt.value) === String(currentValue));
 
   // Close dropdown on outside click
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
 
-    if (isOpen) {
+    // Attach listener with a microtask delay so the triggering mousedown isn't immediately caught
+    const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside);
-    }
+    }, 0);
+
     return () => {
+      clearTimeout(timer);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
@@ -84,6 +90,8 @@ export const Select: React.FC<SelectProps> = ({
     <div
       ref={containerRef}
       data-dropdown-open={isOpen ? 'true' : undefined}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
       className={clsx(
         'w-full flex flex-col gap-1 text-left relative font-vietnam',
         isOpen ? 'z-50' : 'z-auto',
@@ -93,19 +101,27 @@ export const Select: React.FC<SelectProps> = ({
       {label && (
         <label
           htmlFor={id}
-          className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider"
+          className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider select-none"
         >
           {label}
         </label>
       )}
 
       {/* Trigger Button: Kiểu 1 Glass Panel Trigger (Compact) */}
-      <div className={clsx('relative', isOpen ? 'z-50' : 'z-auto')}>
+      <div
+        className={clsx('relative', isOpen ? 'z-50' : 'z-auto')}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <button
           type="button"
           id={id}
           disabled={disabled}
-          onClick={() => !disabled && setIsOpen(!isOpen)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!disabled) setIsOpen(!isOpen);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
           className={clsx(
             'w-full flex items-center justify-between gap-1.5 py-1.5 px-2.5 rounded-xl transition-all duration-200 select-none text-left cursor-pointer border',
             isOpen
@@ -163,20 +179,28 @@ export const Select: React.FC<SelectProps> = ({
 
         {/* Floating Glass Panel Menu */}
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1.5 p-1 rounded-xl bg-white/95 dark:bg-[#0E1726]/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-700/80 shadow-xl z-[9999] max-h-56 overflow-y-auto space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
-            {options.length === 0 ? (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="absolute top-full left-0 right-0 mt-1.5 p-1 rounded-xl bg-white/95 dark:bg-[#0E1726]/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-700/80 shadow-xl z-[99999] max-h-56 overflow-y-auto space-y-0.5 animate-in fade-in zoom-in-95 duration-150"
+          >
+            {safeOptions.length === 0 ? (
               <div className="px-2.5 py-2 text-center text-xs text-slate-400 italic">
                 Không có lựa chọn nào
               </div>
             ) : (
-              options.map((option) => {
+              safeOptions.map((option) => {
                 const isSelected = String(option.value) === String(currentValue);
 
                 return (
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => handleSelect(option)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelect(option);
+                    }}
                     className={clsx(
                       'w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-bold transition-all duration-150 cursor-pointer',
                       isSelected

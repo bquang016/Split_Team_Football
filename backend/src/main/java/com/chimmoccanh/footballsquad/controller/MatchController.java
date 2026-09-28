@@ -86,6 +86,16 @@ public class MatchController {
         return ResponseEntity.ok(ApiResponse.ok("Thêm cầu thủ vào danh sách thành công", participant));
     }
 
+    @PostMapping("/{id}/participants/batch")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<MatchParticipantDto>>> addParticipantsBatch(
+            @PathVariable UUID id,
+            @RequestBody Map<String, List<UUID>> body) {
+        List<UUID> userIds = body.get("userIds");
+        List<MatchParticipantDto> participants = matchService.addParticipantsBatchByAdmin(id, userIds != null ? userIds : List.of());
+        return ResponseEntity.ok(ApiResponse.ok("Đã gán các thành viên vào trận thành công", participants));
+    }
+
     @DeleteMapping("/{id}/participants/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> removeParticipant(
@@ -117,5 +127,30 @@ public class MatchController {
         String jerseyTeam = body.get("jerseyTeam"); // "SPAIN" or "FRANCE"
         MatchDto match = matchService.selectJersey(id, jerseyTeam, userDetails.getUser());
         return ResponseEntity.ok(ApiResponse.ok("Đã chọn áo đấu " + jerseyTeam, match));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteMatch(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        matchService.deleteMatch(id, userDetails.getUser());
+        return ResponseEntity.ok(ApiResponse.ok("Đã xóa trận đấu thành công (Xóa mềm)", null));
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<MatchDto>> restoreMatch(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        MatchDto match = matchService.restoreMatch(id, userDetails.getUser());
+        return ResponseEntity.ok(ApiResponse.ok("Đã khôi phục trận đấu thành công", match));
+    }
+
+    @GetMapping("/deleted")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<MatchDto>>> getDeletedMatches() {
+        List<MatchDto> matches = matchService.getDeletedMatches();
+        return ResponseEntity.ok(ApiResponse.ok(matches));
     }
 }

@@ -21,7 +21,7 @@ export const Sidebar: React.FC = () => {
   ];
 
   if (adminActive) {
-    navItems.push({ to: '/admin', label: 'Quản trị CLB', icon: 'shield_person', exact: false });
+    navItems.push({ to: '/admin', label: 'Duyệt người dùng', icon: 'how_to_reg', exact: false });
   }
 
   const handleLogout = () => {

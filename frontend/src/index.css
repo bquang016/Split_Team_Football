@@ -348,12 +348,12 @@ html:not(.dark) .tab-neon-btn:hover {
 /* ========================================================================= */
 /* GLOBAL DROPDOWN ELEVATION & STACKING CONTEXT FIX */
 /* ========================================================================= */
-:is(div, section, article, aside, .bento-glass-card):has([data-dropdown-open="true"]) {
-  z-index: 40 !important;
+.bento-glass-card:has([data-dropdown-open="true"]) {
+  z-index: 40;
   position: relative;
 }
 
 [data-dropdown-open="true"] {
-  z-index: 50 !important;
+  z-index: 50;
 }
 

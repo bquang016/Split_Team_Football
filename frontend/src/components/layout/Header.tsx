@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { Avatar } from '../../ui';
+import { QuickUserSwitcher } from './QuickUserSwitcher';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 
@@ -12,10 +13,10 @@ export const Header: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
-    toast.success('Đã đăng xuất');
+    toast.success('Đã đăng xuất thành công');
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -80,9 +81,11 @@ export const Header: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* RIGHT SECTION: User Authentication Profile                                 */}
+      {/* RIGHT SECTION: User Authentication Profile & Quick Switcher                */}
       {/* ========================================================================= */}
-      <div className="flex items-center gap-2.5 flex-shrink-0">
+      <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
+        <QuickUserSwitcher />
+
         {isAuthenticated && user ? (
           <div
             className={clsx(

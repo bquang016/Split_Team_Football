@@ -8,6 +8,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import com.chimmoccanh.footballsquad.security.CustomUserDetails;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -30,12 +32,14 @@ public class SpinController {
 
     @PostMapping("/round-pick")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<SpinSessionDto>> spinRoundPick(@PathVariable UUID id) {
-        SpinSessionDto session = spinService.spinRoundPick(id);
+    public ResponseEntity<ApiResponse<SpinSessionDto>> spinRoundPick(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        SpinSessionDto session = spinService.spinRoundPick(id, userDetails != null ? userDetails.getUser() : null);
         return ResponseEntity.ok(ApiResponse.ok("Quay lượt chọn cầu thủ thành công", session));
     }
 
-    @GetMapping("/latest")
+    @GetMapping({"", "/latest"})
     public ResponseEntity<ApiResponse<SpinSessionDto>> getLatestSpin(@PathVariable UUID id) {
         SpinSessionDto session = spinService.getLatestSpin(id);
         return ResponseEntity.ok(ApiResponse.ok(session));

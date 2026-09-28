@@ -22,7 +22,7 @@ public class LineupController {
 
     private final LineupService lineupService;
 
-    @PutMapping
+    @RequestMapping(method = {RequestMethod.PUT, RequestMethod.POST})
     public ResponseEntity<ApiResponse<List<MatchLineupDto>>> saveLineup(
             @PathVariable UUID id,
             @Valid @RequestBody SaveLineupRequest request,

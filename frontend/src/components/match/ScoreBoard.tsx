@@ -51,7 +51,7 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
               {TEAM_A_NAME}
             </h4>
             <Badge variant="teamA" size="sm" className="mt-1">
-              Áo Đỏ
+              {TEAM_A_NAME}
             </Badge>
             {hostAName && (
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 font-space">
@@ -92,7 +92,7 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
               {TEAM_B_NAME}
             </h4>
             <Badge variant="teamB" size="sm" className="mt-1">
-              Áo Xanh
+              {TEAM_B_NAME}
             </Badge>
             {hostBName && (
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 font-space">

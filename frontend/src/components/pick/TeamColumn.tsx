@@ -28,11 +28,11 @@ export const TeamColumn: React.FC<TeamColumnProps> = ({
         <div className="flex items-center gap-2.5">
           <span className="w-4 h-4 rounded-full border border-white shadow-xs" style={{ backgroundColor: teamColor }} />
           <div>
-            <h4 className="font-heading font-black text-base text-slate-900">
+            <h4 className="font-heading font-black text-base text-slate-900 dark:text-white">
               ĐỘI {team} — {teamName}
             </h4>
             <p className="text-xs font-mono text-slate-500 font-medium">
-              {isTeamA ? 'Trang phục: Áo Đỏ' : 'Trang phục: Áo Xanh'}
+              Trang phục thi đấu: {teamName}
             </p>
           </div>
         </div>

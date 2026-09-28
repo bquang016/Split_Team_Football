@@ -1,5 +1,5 @@
 import api from './api';
-import { ApiResponse, Match, MatchParticipant, MatchStatus } from '../types';
+import { ApiResponse, Match, MatchGoal, MatchParticipant, MatchStatus, Team } from '../types';
 
 export const matchService = {
   async getMatches(startDate?: string, endDate?: string): Promise<ApiResponse<Match[]>> {
@@ -21,8 +21,26 @@ export const matchService = {
     matchTime?: string;
     location?: string;
     notes?: string;
+    initialStatus?: MatchStatus;
+    initialScoreTeamA?: number;
+    initialScoreTeamB?: number;
   }): Promise<ApiResponse<Match>> {
     const res = await api.post<ApiResponse<Match>>('/api/matches', data);
+    return res.data;
+  },
+
+  async deleteMatch(id: string): Promise<ApiResponse<void>> {
+    const res = await api.delete<ApiResponse<void>>(`/api/matches/${id}`);
+    return res.data;
+  },
+
+  async restoreMatch(id: string): Promise<ApiResponse<Match>> {
+    const res = await api.post<ApiResponse<Match>>(`/api/matches/${id}/restore`);
+    return res.data;
+  },
+
+  async getDeletedMatches(): Promise<ApiResponse<Match[]>> {
+    const res = await api.get<ApiResponse<Match[]>>('/api/matches/deleted');
     return res.data;
   },
 
@@ -46,6 +64,11 @@ export const matchService = {
     return res.data;
   },
 
+  async addParticipantsBatch(matchId: string, userIds: string[]): Promise<ApiResponse<MatchParticipant[]>> {
+    const res = await api.post<ApiResponse<MatchParticipant[]>>(`/api/matches/${matchId}/participants/batch`, { userIds });
+    return res.data;
+  },
+
   async removeParticipant(matchId: string, userId: string): Promise<ApiResponse<void>> {
     const res = await api.delete<ApiResponse<void>>(`/api/matches/${matchId}/participants/${userId}`);
     return res.data;
@@ -58,6 +81,24 @@ export const matchService = {
 
   async selectJersey(matchId: string, jerseyTeam: string): Promise<ApiResponse<Match>> {
     const res = await api.post<ApiResponse<Match>>(`/api/matches/${matchId}/select-jersey`, { jerseyTeam });
+    return res.data;
+  },
+
+  async recordGoal(
+    matchId: string,
+    data: { scorerId: string; assistId?: string; team: Team; minute?: number; goalCount?: number }
+  ): Promise<ApiResponse<MatchGoal>> {
+    const res = await api.post<ApiResponse<MatchGoal>>(`/api/matches/${matchId}/goals`, data);
+    return res.data;
+  },
+
+  async getMatchGoals(matchId: string): Promise<ApiResponse<MatchGoal[]>> {
+    const res = await api.get<ApiResponse<MatchGoal[]>>(`/api/matches/${matchId}/goals`);
+    return res.data;
+  },
+
+  async deleteGoal(matchId: string, goalId: string): Promise<ApiResponse<void>> {
+    const res = await api.delete<ApiResponse<void>>(`/api/matches/${matchId}/goals/${goalId}`);
     return res.data;
   },
 };

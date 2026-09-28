@@ -61,21 +61,18 @@ public class LeaderboardService {
         if (totalDraws < 0) totalDraws = 0;
         double winRate = totalMatches > 0 ? ((double) totalWins / totalMatches) * 100.0 : 0.0;
 
-        LeaderboardCache cache = leaderboardRepository.findById(userId)
-                .orElseGet(() -> LeaderboardCache.builder().userId(userId).user(user).build());
-
-        cache.setUser(user);
-        cache.setTotalGoals(totalGoals);
-        cache.setTotalAssists(totalAssists);
-        cache.setTotalSaves(totalSaves);
-        cache.setTotalWins(totalWins);
-        cache.setTotalLosses(totalLosses);
-        cache.setTotalDraws(totalDraws);
-        cache.setTotalMatches(totalMatches);
-        cache.setTotalMvp(totalMvp);
-        cache.setWinRate(Math.round(winRate * 10.0) / 10.0);
-
-        leaderboardRepository.save(cache);
+        leaderboardRepository.upsertStats(
+                userId,
+                totalGoals,
+                totalAssists,
+                totalSaves,
+                totalWins,
+                totalLosses,
+                totalDraws,
+                totalMatches,
+                totalMvp,
+                Math.round(winRate * 10.0) / 10.0
+        );
     }
 
     @Transactional

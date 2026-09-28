@@ -95,12 +95,12 @@ export const AdminPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <Badge variant="primary" dot size="sm">
-                Quản trị giải
+                Duyệt người dùng
               </Badge>
               <span className="text-[11px] text-slate-400 font-space font-medium">Ban Cán Sự CLB</span>
             </div>
             <h1 className="font-space font-black text-lg sm:text-xl text-slate-900 dark:text-white mt-1 tracking-tight">
-              Trung Tâm Quản Trị
+              Duyệt Người Dùng
             </h1>
             <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Phê duyệt thành viên mới, phân quyền và quản lý tài khoản người dùng

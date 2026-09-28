@@ -22,4 +22,19 @@ export const authService = {
     const res = await api.get<ApiResponse<User>>('/api/auth/me');
     return res.data;
   },
+
+  async logout(): Promise<ApiResponse<void>> {
+    const res = await api.post<ApiResponse<void>>('/api/auth/logout');
+    return res.data;
+  },
+
+  async quickLogin(userId: string): Promise<ApiResponse<AuthResponse>> {
+    const res = await api.post<ApiResponse<AuthResponse>>(`/api/auth/quick-login/${userId}`);
+    return res.data;
+  },
+
+  async getQuickUsers(): Promise<ApiResponse<User[]>> {
+    const res = await api.get<ApiResponse<User[]>>('/api/auth/quick-users');
+    return res.data;
+  },
 };

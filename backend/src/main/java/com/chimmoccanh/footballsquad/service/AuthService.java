@@ -100,4 +100,31 @@ public class AuthService {
                 .user(UserDto.fromEntity(user))
                 .build();
     }
+
+    @Transactional(readOnly = true)
+    public AuthResponse quickLogin(java.util.UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new com.chimmoccanh.footballsquad.exception.ResourceNotFoundException("Không tìm thấy người dùng"));
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BadRequestException("Tài khoản chưa được kích hoạt hoặc đã bị khóa");
+        }
+
+        String accessToken = tokenProvider.generateAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+        String refreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getUsername());
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .user(UserDto.fromEntity(user))
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<UserDto> getQuickUsers() {
+        return userRepository.findByStatus(UserStatus.ACTIVE).stream()
+                .map(UserDto::fromEntity)
+                .collect(java.util.stream.Collectors.toList());
+    }
 }

@@ -1,0 +1,2 @@
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS first_pick_team VARCHAR(10);
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS pick_turn_started_at TIMESTAMP;

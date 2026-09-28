@@ -17,7 +17,7 @@ export const BottomNav: React.FC = () => {
   ];
 
   if (isAdmin) {
-    navItems.push({ to: '/admin', label: 'Quản trị', icon: 'shield_person' });
+    navItems.push({ to: '/admin', label: 'Duyệt User', icon: 'how_to_reg' });
   }
 
   return (

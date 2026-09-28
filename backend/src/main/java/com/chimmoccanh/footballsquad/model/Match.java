@@ -1,5 +1,6 @@
 package com.chimmoccanh.footballsquad.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.chimmoccanh.footballsquad.model.enums.MatchStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -17,6 +18,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Match {
 
     @Id
@@ -65,11 +67,28 @@ public class Match {
     @Column(name = "jersey_winner_team", length = 10)
     private String jerseyWinnerTeam;   // "SPAIN" hoặc "FRANCE" - đội áo mà người thắng spin đã chọn
 
+    @Column(name = "first_pick_team", length = 10)
+    private String firstPickTeam;      // "A" hoặc "B" - đội thắng vòng quay chọn cầu thủ trước
+
+    @Column(name = "pick_turn_started_at")
+    private LocalDateTime pickTurnStartedAt; // Thời điểm bắt đầu lượt pick hiện tại để đếm ngược 60s
+
     @Column(name = "start_at")
     private LocalDateTime startAt;     // Thời điểm ADMIN bắt đầu trận (IN_PROGRESS)
 
     @Column(name = "end_at")
     private LocalDateTime endAt;       // Thời điểm ADMIN kết thúc trận (COMPLETED)
+
+    @Column(name = "is_deleted", nullable = false)
+    @Builder.Default
+    private boolean isDeleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deleted_by")
+    private User deletedBy;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

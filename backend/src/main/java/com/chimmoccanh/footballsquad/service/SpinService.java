@@ -1,6 +1,7 @@
 package com.chimmoccanh.footballsquad.service;
 
 import com.chimmoccanh.footballsquad.dto.request.StartSpinRequest;
+import com.chimmoccanh.footballsquad.dto.response.MatchDto;
 import com.chimmoccanh.footballsquad.dto.response.SpinSessionDto;
 import com.chimmoccanh.footballsquad.exception.BadRequestException;
 import com.chimmoccanh.footballsquad.exception.ResourceNotFoundException;
@@ -37,6 +38,11 @@ public class SpinService {
     public SpinSessionDto startSpin(UUID matchId, StartSpinRequest request) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        // Validate match status
+        if (match.getStatus() != MatchStatus.PENDING && match.getStatus() != MatchStatus.JERSEY_SELECTION) {
+            throw new BadRequestException("Chỉ quay chọn đội trưởng khi trận đấu ở bước Điểm danh hoặc Chọn áo");
+        }
 
         if (request.getHostAId().equals(request.getHostBId())) {
             throw new BadRequestException("Hai đội trưởng phải là hai người khác nhau");
@@ -82,24 +88,45 @@ public class SpinService {
 
         // Update match status to JERSEY_SELECTION (Bước 2)
         match.setStatus(MatchStatus.JERSEY_SELECTION);
-        matchRepository.save(match);
+        Match savedMatch = matchRepository.save(match);
 
         SpinSessionDto dto = SpinSessionDto.fromEntity(savedSession);
         notificationService.broadcastSpinEvent(matchId, dto);
-        notificationService.broadcastMatchStatus(matchId, match);
+        notificationService.broadcastMatchStatus(matchId, MatchDto.fromEntity(savedMatch));
 
         return dto;
     }
 
     @Transactional
-    public SpinSessionDto spinRoundPick(UUID matchId) {
+    public SpinSessionDto spinRoundPick(UUID matchId, User currentUser) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        // Validate match status
+        if (match.getStatus() != MatchStatus.PLAYER_PICKING) {
+            throw new BadRequestException("Chỉ quay lượt chọn cầu thủ ở bước Pick cầu thủ (PLAYER_PICKING)");
+        }
 
         List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrue(matchId);
         if (hosts.size() < 2) {
             throw new BadRequestException("Cần có 2 đội trưởng để quay lượt pick");
         }
+
+        // Validate permission: only captains or admin can spin
+        if (currentUser != null) {
+            boolean isHost = hosts.stream().anyMatch(h -> h.getUser().getId().equals(currentUser.getId()));
+            boolean isAdmin = currentUser.getRole() == com.chimmoccanh.footballsquad.model.enums.UserRole.ADMIN;
+            if (!isHost && !isAdmin) {
+                throw new BadRequestException("Chỉ 2 Đội trưởng hoặc Admin mới có quyền bấm quay lượt chọn");
+            }
+        }
+
+        // Sort by team to ensure consistent A/B ordering
+        hosts.sort((a, b) -> {
+            if (a.getTeam() == Team.A) return -1;
+            if (b.getTeam() == Team.A) return 1;
+            return 0;
+        });
 
         User hostA = hosts.get(0).getUser();
         User hostB = hosts.get(1).getUser();
@@ -107,7 +134,7 @@ public class SpinService {
         long seed = Math.abs(secureRandom.nextLong());
         boolean winnerIsA = (seed % 2 == 0);
         User winner = winnerIsA ? hostA : hostB;
-        int durationMs = 3500;
+        int durationMs = 4500;
 
         SpinSession session = SpinSession.builder()
                 .match(match)
@@ -119,9 +146,23 @@ public class SpinService {
                 .build();
 
         SpinSession savedSession = spinSessionRepository.save(session);
+
+        // Record first pick team and start turn timer (giving 5 seconds for wheel animation)
+        String firstPick = winnerIsA ? "A" : "B";
+        match.setFirstPickTeam(firstPick);
+        match.setPickTurnStartedAt(java.time.LocalDateTime.now().plusSeconds(5));
+        Match savedMatch = matchRepository.save(match);
+
         SpinSessionDto dto = SpinSessionDto.fromEntity(savedSession);
         notificationService.broadcastSpinEvent(matchId, dto);
+        notificationService.broadcastMatchStatus(matchId, MatchDto.fromEntity(savedMatch));
+        notificationService.broadcastPickEvent(matchId, "ROUND_SPIN_COMPLETED");
         return dto;
+    }
+
+    @Transactional
+    public SpinSessionDto spinRoundPick(UUID matchId) {
+        return spinRoundPick(matchId, null);
     }
 
     @Transactional(readOnly = true)

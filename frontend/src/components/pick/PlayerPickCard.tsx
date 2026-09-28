@@ -6,6 +6,9 @@ import { TEAM_A_COLOR, TEAM_B_COLOR } from '../../utils/constants';
 interface PlayerPickCardProps {
   participant: MatchParticipant;
   canPick?: boolean;
+  canPickA?: boolean;
+  canPickB?: boolean;
+  canPickBench?: boolean;
   onPickA?: () => void;
   onPickB?: () => void;
   onPickBench?: () => void;
@@ -15,6 +18,9 @@ interface PlayerPickCardProps {
 export const PlayerPickCard: React.FC<PlayerPickCardProps> = ({
   participant,
   canPick = false,
+  canPickA = true,
+  canPickB = true,
+  canPickBench = true,
   onPickA,
   onPickB,
   onPickBench,
@@ -23,19 +29,19 @@ export const PlayerPickCard: React.FC<PlayerPickCardProps> = ({
   const { user, team, isHost, pickOrder } = participant;
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 shadow-xs transition-all group">
+    <div className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs transition-all group">
       <div className="flex items-center gap-3">
         <Avatar name={user.fullName} jerseyNumber={user.jerseyNumber} size="md" showNumber />
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-heading font-black text-sm text-slate-900">{user.fullName}</span>
+            <span className="font-heading font-black text-sm text-slate-900 dark:text-white">{user.fullName}</span>
             {isHost && (
               <Badge variant="gold" size="sm">
                 Đội trưởng
               </Badge>
             )}
             {pickOrder !== undefined && pickOrder !== null && pickOrder > 0 && (
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold border border-slate-200">
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold border border-slate-200 dark:border-slate-700">
                 Lượt #{pickOrder}
               </span>
             )}
@@ -51,27 +57,31 @@ export const PlayerPickCard: React.FC<PlayerPickCardProps> = ({
         <div className="flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity">
           {team === 'NONE' || !team ? (
             <>
-              <button
-                onClick={onPickA}
-                title="Chọn vào Đội A (Tây Ban Nha)"
-                className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold text-white shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                style={{ backgroundColor: TEAM_A_COLOR }}
-              >
-                + Đội A
-              </button>
-              <button
-                onClick={onPickB}
-                title="Chọn vào Đội B (Pháp)"
-                className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold text-white shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                style={{ backgroundColor: TEAM_B_COLOR }}
-              >
-                + Đội B
-              </button>
-              {onPickBench && (
+              {canPickA && onPickA && (
+                <button
+                  onClick={onPickA}
+                  title="Chọn vào Đội A (Tây Ban Nha)"
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold text-white shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                  style={{ backgroundColor: TEAM_A_COLOR }}
+                >
+                  + Đội A
+                </button>
+              )}
+              {canPickB && onPickB && (
+                <button
+                  onClick={onPickB}
+                  title="Chọn vào Đội B (Pháp)"
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold text-white shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                  style={{ backgroundColor: TEAM_B_COLOR }}
+                >
+                  + Đội B
+                </button>
+              )}
+              {canPickBench && onPickBench && (
                 <button
                   onClick={onPickBench}
                   title="Xếp vào Dự bị"
-                  className="px-2 py-1.5 rounded-xl text-xs font-mono text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer"
+                  className="px-2 py-1.5 rounded-xl text-xs font-mono text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
                 >
                   Dự bị
                 </button>
@@ -81,7 +91,7 @@ export const PlayerPickCard: React.FC<PlayerPickCardProps> = ({
             <button
               onClick={onReset}
               title="Đặt lại vào danh sách chờ"
-              className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined text-[18px]">undo</span>
             </button>

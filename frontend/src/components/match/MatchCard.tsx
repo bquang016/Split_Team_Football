@@ -6,18 +6,31 @@ import { StatusBadge } from './StatusBadge';
 import { formatDateVi, formatTimeVi } from '../../utils/formatters';
 import { TEAM_A_COLOR, TEAM_A_NAME, TEAM_B_COLOR, TEAM_B_NAME } from '../../utils/constants';
 
-export const MatchCard: React.FC<{ match: Match }> = ({ match }) => {
+export const MatchCard: React.FC<{
+  match: Match;
+  onDelete?: (matchId: string) => void;
+  onRestore?: (matchId: string) => void;
+  isAdmin?: boolean;
+}> = ({ match, onDelete, onRestore, isAdmin }) => {
   const isFinished = match.status === 'COMPLETED';
   const isLive = match.status === 'IN_PROGRESS';
+  const isDeleted = match.isDeleted;
   const hasScore = isLive || isFinished;
   const participantCount = match.participants?.length || 0;
 
   return (
-    <Card hoverable elevation="level1" className="flex flex-col justify-between group !p-4 sm:!p-5 !rounded-2xl">
+    <Card hoverable elevation="level1" className={`flex flex-col justify-between group !p-4 sm:!p-5 !rounded-2xl ${isDeleted ? 'opacity-75 border-dashed border-rose-400 dark:border-rose-800' : ''}`}>
       {/* Top Header */}
       <div>
         <div className="flex items-center justify-between gap-2 mb-2.5">
-          <StatusBadge status={match.status} />
+          {isDeleted ? (
+            <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-[11px] font-space font-bold inline-flex items-center gap-1">
+              <span className="material-symbols-outlined text-xs">delete</span>
+              Đã xóa mềm
+            </span>
+          ) : (
+            <StatusBadge status={match.status} />
+          )}
           <span className="text-xs font-space text-slate-400 dark:text-slate-500 flex items-center gap-1">
             <span className="material-symbols-outlined text-sm">location_on</span>
             <span className="truncate max-w-[120px]">{match.location || 'Sân cố định'}</span>
@@ -82,15 +95,43 @@ export const MatchCard: React.FC<{ match: Match }> = ({ match }) => {
       </div>
 
       {/* Action Footer */}
-      <div className="pt-2.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-        <span className="text-[11px] font-space text-slate-400 dark:text-slate-500 truncate max-w-[130px]">
+      <div className="pt-2.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+        <span className="text-[11px] font-space text-slate-400 dark:text-slate-500 truncate max-w-[110px]">
           {match.createdBy?.fullName ? `Tạo bởi: ${match.createdBy.fullName}` : 'Sân 7v7'}
         </span>
-        <Link to={`/matches/${match.id}`}>
-          <Button size="sm" variant={isLive ? 'primary' : 'secondary'} rightIcon="arrow_forward">
-            {isLive ? 'Vào phòng LIVE' : 'Xem chi tiết'}
-          </Button>
-        </Link>
+
+        <div className="flex items-center gap-1.5">
+          {isDeleted && onRestore && (
+            <Button
+              size="sm"
+              variant="primary"
+              leftIcon="restore_from_trash"
+              onClick={() => onRestore(match.id)}
+            >
+              Khôi phục
+            </Button>
+          )}
+
+          {!isDeleted && (
+            <>
+              {isAdmin && onDelete && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(match.id)}
+                  title="Xóa mềm trận đấu"
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-lg">delete</span>
+                </button>
+              )}
+              <Link to={`/matches/${match.id}`}>
+                <Button size="sm" variant={isLive ? 'primary' : 'secondary'} rightIcon="arrow_forward">
+                  {isLive ? 'Vào phòng LIVE' : 'Xem chi tiết'}
+                </Button>
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </Card>
   );

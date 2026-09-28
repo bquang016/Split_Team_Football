@@ -43,16 +43,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        String[] origins = Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .toArray(String[]::new);
-
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns(origins)
+                .setAllowedOriginPatterns("*")
                 .withSockJS();
 
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns(origins);
+                .setAllowedOriginPatterns("*");
     }
 
     @Override

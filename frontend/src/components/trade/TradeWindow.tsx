@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { MatchParticipant, TradeRequest, User } from '../../types';
-import { Card, Button, Badge, Avatar } from '../../ui';
+import { MatchParticipant, TradeRequest } from '../../types';
+import { Card, Button, Badge, Avatar, Select } from '../../ui';
 import { tradeService } from '../../services/tradeService';
-import { matchService } from '../../services/matchService';
 import { useAuthStore } from '../../store/authStore';
 import { TEAM_A_NAME, TEAM_B_NAME, TEAM_A_COLOR, TEAM_B_COLOR } from '../../utils/constants';
 import toast from 'react-hot-toast';
@@ -26,8 +25,11 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
   const [loadingTrades, setLoadingTrades] = useState(false);
   const [submittingTrade, setSubmittingTrade] = useState(false);
   const [timeLeftSec, setTimeLeftSec] = useState(600); // 10 minutes
+  const [captainAConfirmedNoTrade, setCaptainAConfirmedNoTrade] = useState(false);
+  const [captainBConfirmedNoTrade, setCaptainBConfirmedNoTrade] = useState(false);
 
   const { user, isAdmin } = useAuthStore();
+  const adminActive = isAdmin();
 
   const teamAPlayers = participants.filter((p) => p.team === 'A');
   const teamBPlayers = participants.filter((p) => p.team === 'B');
@@ -35,11 +37,27 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
   const myParticipant = participants.find((p) => p.user.id === user?.id);
   const isCaptainA = participants.some((p) => p.user.id === user?.id && p.isHost && p.team === 'A');
   const isCaptainB = participants.some((p) => p.user.id === user?.id && p.isHost && p.team === 'B');
-  const canTrade = isAdmin() || isCaptainA || isCaptainB;
+  const canTrade = adminActive || isCaptainA || isCaptainB;
 
   const myTeam = isCaptainA ? 'A' : isCaptainB ? 'B' : myParticipant?.team || 'A';
   const availableMyTeamPlayers = (myTeam === 'A' ? teamAPlayers : teamBPlayers).filter((p) => !p.isHost);
   const availableOpponentPlayers = (myTeam === 'A' ? teamBPlayers : teamAPlayers).filter((p) => !p.isHost);
+
+  const myPlayerOptions = availableMyTeamPlayers.map((p) => ({
+    value: p.user.id,
+    label: p.user.fullName,
+    jerseyNumber: p.user.jerseyNumber,
+    avatar: p.user.avatarUrl,
+    sublabel: `@${p.user.username}`,
+  }));
+
+  const targetPlayerOptions = availableOpponentPlayers.map((p) => ({
+    value: p.user.id,
+    label: p.user.fullName,
+    jerseyNumber: p.user.jerseyNumber,
+    avatar: p.user.avatarUrl,
+    sublabel: `@${p.user.username}`,
+  }));
 
   const fetchTrades = async () => {
     setLoadingTrades(true);
@@ -59,13 +77,28 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
     fetchTrades();
   }, [matchId]);
 
-  // Countdown timer
+  // Countdown timer 10 minutes
   useEffect(() => {
     const interval = setInterval(() => {
-      setTimeLeftSec((prev) => (prev > 0 ? prev - 1 : 0));
+      setTimeLeftSec((prev) => {
+        if (prev <= 1) {
+          toast.success('Hết thời gian chuyển nhượng 10 phút! Tự động chuyển sang Sơ đồ thi đấu.');
+          onProceedToLineup();
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [onProceedToLineup]);
+
+  // Auto proceed when both captains confirmed no trade
+  useEffect(() => {
+    if (captainAConfirmedNoTrade && captainBConfirmedNoTrade) {
+      toast.success('Cả hai đội trưởng đã xác nhận không chỉnh sửa! Chuyển sang Sơ đồ thi đấu.');
+      onProceedToLineup();
+    }
+  }, [captainAConfirmedNoTrade, captainBConfirmedNoTrade, onProceedToLineup]);
 
   const formatTimer = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -120,53 +153,103 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
     }
   };
 
+  const toggleNoTradeConfirmation = () => {
+    if (adminActive) {
+      setCaptainAConfirmedNoTrade(true);
+      setCaptainBConfirmedNoTrade(true);
+    } else if (isCaptainA) {
+      const next = !captainAConfirmedNoTrade;
+      setCaptainAConfirmedNoTrade(next);
+      toast.success(next ? 'Đội trưởng A đã xác nhận: Không chỉnh sửa' : 'Đã hủy xác nhận');
+    } else if (isCaptainB) {
+      const next = !captainBConfirmedNoTrade;
+      setCaptainBConfirmedNoTrade(next);
+      toast.success(next ? 'Đội trưởng B đã xác nhận: Không chỉnh sửa' : 'Đã hủy xác nhận');
+    }
+  };
+
   const pendingTrades = trades.filter((t) => t.status === 'PENDING');
-  const pastTrades = trades.filter((t) => t.status !== 'PENDING');
 
   return (
-    <div className="flex flex-col gap-6 max-w-5xl mx-auto font-sans">
-      {/* Header with Timer */}
-      <Card elevation="glass" glow className="p-5 sm:p-6">
+    <div className="flex flex-col gap-6 max-w-5xl mx-auto font-sans text-slate-900 dark:text-slate-100">
+      {/* Header with Timer and Confirmation Status */}
+      <Card elevation="glass" glow className="p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <Badge variant="gold" dot size="sm">
-                Bước 4: Chuyển Nhượng (Trade Window)
+                Bước 4: Chỉnh Sửa & Chuyển Nhượng (Trade)
               </Badge>
-              <span className="text-xs text-slate-400 font-space">Thời gian có hạn: 10 phút</span>
+              <span className="text-xs text-slate-500 font-space">Thời gian chỉnh sửa: 10 phút</span>
             </div>
             <h2 className="font-space font-black text-xl sm:text-2xl text-slate-900 dark:text-white mt-1.5 tracking-tight">
               Trao Đổi Cầu Thủ Giữa 2 Đội
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Hai đội trưởng có thể đề nghị trao đổi 1-1 trước khi bước vào xếp sơ đồ sa bàn.
+              Hai bên có thể gửi đề nghị đổi người. Nếu cả 2 đội trưởng nhấn "Không chỉnh sửa" hoặc hết 10 phút, hệ thống sẽ tự động chuyển tiếp.
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             {/* Timer countdown badge */}
-            <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 font-space font-black text-xl">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 font-space font-black text-xl shadow-xs">
               <span className="material-symbols-outlined text-2xl animate-pulse">timer</span>
               <span>{formatTimer(timeLeftSec)}</span>
             </div>
 
-            {(isAdmin() || isCaptainA || isCaptainB) && (
+            {/* Không chỉnh sửa Button for Captains / Admin */}
+            {canTrade && (
+              <Button
+                variant={
+                  (isCaptainA && captainAConfirmedNoTrade) || (isCaptainB && captainBConfirmedNoTrade)
+                    ? 'emerald'
+                    : 'secondary'
+                }
+                size="md"
+                leftIcon="check_circle"
+                onClick={toggleNoTradeConfirmation}
+              >
+                {adminActive
+                  ? 'Chốt: Không chỉnh sửa'
+                  : (isCaptainA && captainAConfirmedNoTrade) || (isCaptainB && captainBConfirmedNoTrade)
+                  ? 'Đã xác nhận Không chỉnh sửa'
+                  : 'Nút: Không chỉnh sửa'}
+              </Button>
+            )}
+
+            {adminActive && (
               <Button
                 variant="primary"
                 size="md"
                 rightIcon="arrow_forward"
                 onClick={onProceedToLineup}
               >
-                Chốt đội hình & Sang Sa bàn
+                Chốt sang Sa bàn
               </Button>
             )}
+          </div>
+        </div>
+
+        {/* Captain confirmation indicators */}
+        <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-4 text-xs font-space">
+          <div className="flex items-center gap-1.5">
+            <span className={`w-3 h-3 rounded-full ${captainAConfirmedNoTrade ? 'bg-emerald-500 shadow-sm' : 'bg-slate-300 dark:bg-slate-700'}`} />
+            <span className="text-slate-600 dark:text-slate-400">
+              Đội trưởng {TEAM_A_NAME}: <strong>{captainAConfirmedNoTrade ? 'Đã xác nhận Không chỉnh sửa' : 'Chưa bấm'}</strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`w-3 h-3 rounded-full ${captainBConfirmedNoTrade ? 'bg-emerald-500 shadow-sm' : 'bg-slate-300 dark:bg-slate-700'}`} />
+            <span className="text-slate-600 dark:text-slate-400">
+              Đội trưởng {TEAM_B_NAME}: <strong>{captainBConfirmedNoTrade ? 'Đã xác nhận Không chỉnh sửa' : 'Chưa bấm'}</strong>
+            </span>
           </div>
         </div>
       </Card>
 
       {/* Propose Trade Card */}
       {canTrade && (
-        <Card elevation="level1" className="p-5 sm:p-6">
+        <Card elevation="level1" className="p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
           <h3 className="font-space font-bold text-base text-slate-900 dark:text-white mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-emerald-500">swap_horiz</span>
             Gửi Đề Nghị Trao Đổi Cầu Thủ
@@ -175,40 +258,24 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             {/* Player from my team */}
             <div>
-              <label className="block text-xs font-space font-bold text-slate-600 dark:text-slate-400 mb-1.5">
-                Cầu thủ đội mình muốn đổi đi:
-              </label>
-              <select
+              <Select
+                label="Cầu thủ đội mình muốn đổi đi"
+                placeholder="Chọn cầu thủ bên mình..."
                 value={selectedMyPlayerId}
                 onChange={(e) => setSelectedMyPlayerId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-space text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
-              >
-                <option value="">-- Chọn cầu thủ bên mình --</option>
-                {availableMyTeamPlayers.map((p) => (
-                  <option key={p.user.id} value={p.user.id}>
-                    {p.user.fullName} (#{p.user.jerseyNumber || '—'})
-                  </option>
-                ))}
-              </select>
+                options={myPlayerOptions}
+              />
             </div>
 
             {/* Player from opponent team */}
             <div>
-              <label className="block text-xs font-space font-bold text-slate-600 dark:text-slate-400 mb-1.5">
-                Cầu thủ đối phương muốn nhận về:
-              </label>
-              <select
+              <Select
+                label="Cầu thủ đối phương muốn nhận về"
+                placeholder="Chọn cầu thủ đối phương..."
                 value={selectedTargetPlayerId}
                 onChange={(e) => setSelectedTargetPlayerId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-space text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
-              >
-                <option value="">-- Chọn cầu thủ đối phương --</option>
-                {availableOpponentPlayers.map((p) => (
-                  <option key={p.user.id} value={p.user.id}>
-                    {p.user.fullName} (#{p.user.jerseyNumber || '—'})
-                  </option>
-                ))}
-              </select>
+                options={targetPlayerOptions}
+              />
             </div>
           </div>
 
@@ -219,13 +286,13 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
             isLoading={submittingTrade}
             onClick={handleProposeTrade}
           >
-            Gửi Đề Nghị Đổi
+            Gửi Đề Nghị Đổi Cầu Thủ
           </Button>
         </Card>
       )}
 
       {/* Pending Trade Requests */}
-      <Card elevation="level1" className="p-5 sm:p-6">
+      <Card elevation="level1" className="p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
         <h3 className="font-space font-bold text-base text-slate-900 dark:text-white mb-3 flex items-center gap-2">
           <span className="material-symbols-outlined text-amber-500">pending_actions</span>
           Đề Nghị Đang Chờ Phản Hồi ({pendingTrades.length})
@@ -239,7 +306,7 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
           <div className="flex flex-col gap-3">
             {pendingTrades.map((t) => {
               const isSender = t.requestedBy.id === user?.id;
-              const canRespond = isAdmin() || (!isSender && (isCaptainA || isCaptainB));
+              const canRespond = adminActive || (!isSender && (isCaptainA || isCaptainB));
 
               return (
                 <div
@@ -299,7 +366,7 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
       {/* Roster Preview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Team A */}
-        <Card elevation="level1" className="p-4 sm:p-5">
+        <Card elevation="level1" className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: TEAM_A_COLOR }} />
@@ -310,19 +377,19 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
           </div>
           <div className="flex flex-col gap-2">
             {teamAPlayers.map((p) => (
-              <div key={p.id} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-xs font-space">
+              <div key={p.id} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-xs font-space border border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <Avatar name={p.user.fullName} jerseyNumber={p.user.jerseyNumber} size="sm" showNumber />
                   <span className="font-bold text-slate-800 dark:text-slate-200">{p.user.fullName}</span>
                 </div>
-                {p.isHost && <Badge variant="gold" size="sm">C</Badge>}
+                {p.isHost && <Badge variant="gold" size="sm">Đội trưởng</Badge>}
               </div>
             ))}
           </div>
         </Card>
 
         {/* Team B */}
-        <Card elevation="level1" className="p-4 sm:p-5">
+        <Card elevation="level1" className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: TEAM_B_COLOR }} />
@@ -333,12 +400,12 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
           </div>
           <div className="flex flex-col gap-2">
             {teamBPlayers.map((p) => (
-              <div key={p.id} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-xs font-space">
+              <div key={p.id} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-xs font-space border border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <Avatar name={p.user.fullName} jerseyNumber={p.user.jerseyNumber} size="sm" showNumber />
                   <span className="font-bold text-slate-800 dark:text-slate-200">{p.user.fullName}</span>
                 </div>
-                {p.isHost && <Badge variant="gold" size="sm">C</Badge>}
+                {p.isHost && <Badge variant="gold" size="sm">Đội trưởng</Badge>}
               </div>
             ))}
           </div>
