@@ -3,11 +3,15 @@ import { Link } from 'react-router-dom';
 import { LeaderboardItem } from '../types';
 import { leaderboardService } from '../services/leaderboardService';
 import { useAuthStore } from '../store/authStore';
-import { Card, Badge, Avatar, Select } from '../ui';
+import { Avatar } from '../ui';
+import clsx from 'clsx';
 import toast from 'react-hot-toast';
+
+type SortMode = 'goals' | 'assists' | 'winrate' | 'mvp';
 
 interface EnrichedLeaderboardItem extends LeaderboardItem {
   position: string;
+  positionCode: string;
   mvpCount: number;
   form: ('W' | 'D' | 'L')[];
   teamName: string;
@@ -16,13 +20,12 @@ interface EnrichedLeaderboardItem extends LeaderboardItem {
 
 export const LeaderboardPage: React.FC = () => {
   const [items, setItems] = useState<EnrichedLeaderboardItem[]>([]);
-  const [sortMode, setSortMode] = useState<'goals' | 'assists' | 'winrate' | 'mvp'>('goals');
-  const [season, setSeason] = useState('2025');
+  const [sortMode, setSortMode] = useState<SortMode>('goals');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const { user } = useAuthStore();
 
-  // Sample fallback seed data when backend has partial records
+  // Danh sách cầu thủ mẫu thuộc CLB Chim Mọc Cánh - CMC University
   const sampleRoster: EnrichedLeaderboardItem[] = [
     {
       rank: 1,
@@ -43,9 +46,10 @@ export const LeaderboardPage: React.FC = () => {
       totalLosses: 2,
       totalSaves: 0,
       totalMvp: 3,
-      winRate: 78.5,
+      winRate: 78.6,
       updatedAt: new Date().toISOString(),
-      position: 'ST',
+      position: 'Tiền đạo (ST)',
+      positionCode: 'ST',
       mvpCount: 3,
       form: ['W', 'W', 'W', 'L', 'W'],
       teamName: 'Team A (Tây Ban Nha)',
@@ -67,11 +71,12 @@ export const LeaderboardPage: React.FC = () => {
       totalWins: 10,
       totalDraws: 2,
       totalLosses: 2,
-      totalSaves: 5,
+      totalSaves: 4,
       totalMvp: 4,
       winRate: 71.4,
       updatedAt: new Date().toISOString(),
-      position: 'CM',
+      position: 'Tiền vệ (CM)',
+      positionCode: 'CM',
       mvpCount: 4,
       form: ['W', 'W', 'L', 'W', 'W'],
       teamName: 'Team A (Tây Ban Nha)',
@@ -98,7 +103,8 @@ export const LeaderboardPage: React.FC = () => {
       totalMvp: 2,
       winRate: 61.5,
       updatedAt: new Date().toISOString(),
-      position: 'CM',
+      position: 'Tiền vệ (CM)',
+      positionCode: 'CM',
       mvpCount: 2,
       form: ['L', 'W', 'W', 'W', 'D'],
       teamName: 'Team B (Pháp)',
@@ -124,65 +130,14 @@ export const LeaderboardPage: React.FC = () => {
       totalMvp: 1,
       winRate: 58.3,
       updatedAt: new Date().toISOString(),
-      position: 'RW',
+      position: 'Cánh phải (RW)',
+      positionCode: 'RW',
       mvpCount: 1,
       form: ['W', 'L', 'W', 'W', 'W'],
       teamName: 'Team B (Pháp)',
     },
     {
       rank: 5,
-      user: {
-        id: 'u-5',
-        username: 'baotrong',
-        fullName: 'Bảo Trọng',
-        jerseyNumber: 1,
-        role: 'PLAYER',
-        status: 'ACTIVE',
-        createdAt: '2025-01-01',
-      },
-      totalMatches: 14,
-      totalGoals: 0,
-      totalAssists: 2,
-      totalWins: 10,
-      totalDraws: 1,
-      totalLosses: 3,
-      totalSaves: 24,
-      totalMvp: 3,
-      winRate: 71.4,
-      updatedAt: new Date().toISOString(),
-      position: 'GK',
-      mvpCount: 3,
-      form: ['W', 'W', 'L', 'W', 'W'],
-      teamName: 'Team A (Tây Ban Nha)',
-    },
-    {
-      rank: 6,
-      user: {
-        id: 'u-6',
-        username: 'dangkhoa',
-        fullName: 'Đăng Khoa',
-        jerseyNumber: 4,
-        role: 'PLAYER',
-        status: 'ACTIVE',
-        createdAt: '2025-01-01',
-      },
-      totalMatches: 11,
-      totalGoals: 3,
-      totalAssists: 3,
-      totalWins: 6,
-      totalDraws: 1,
-      totalLosses: 4,
-      totalSaves: 0,
-      totalMvp: 0,
-      winRate: 54.5,
-      updatedAt: new Date().toISOString(),
-      position: 'CB',
-      mvpCount: 0,
-      form: ['L', 'W', 'W', 'L', 'W'],
-      teamName: 'Team A (Tây Ban Nha)',
-    },
-    {
-      rank: 7,
       user: {
         id: 'u-7',
         username: 'vuneymar',
@@ -202,10 +157,65 @@ export const LeaderboardPage: React.FC = () => {
       totalMvp: 1,
       winRate: 40.0,
       updatedAt: new Date().toISOString(),
-      position: 'LW',
+      position: 'Cánh trái (LW)',
+      positionCode: 'LW',
       mvpCount: 1,
       form: ['L', 'L', 'W', 'L', 'W'],
       teamName: 'Team B (Pháp)',
+    },
+    {
+      rank: 6,
+      user: {
+        id: 'u-5',
+        username: 'baotrong',
+        fullName: 'Bảo Trọng (GK)',
+        jerseyNumber: 1,
+        role: 'PLAYER',
+        status: 'ACTIVE',
+        createdAt: '2025-01-01',
+      },
+      totalMatches: 14,
+      totalGoals: 0,
+      totalAssists: 2,
+      totalWins: 10,
+      totalDraws: 1,
+      totalLosses: 3,
+      totalSaves: 24,
+      totalMvp: 3,
+      winRate: 71.4,
+      updatedAt: new Date().toISOString(),
+      position: 'Thủ môn (GK)',
+      positionCode: 'GK',
+      mvpCount: 3,
+      form: ['W', 'W', 'L', 'W', 'W'],
+      teamName: 'Team A (Tây Ban Nha)',
+    },
+    {
+      rank: 7,
+      user: {
+        id: 'u-6',
+        username: 'dangkhoa',
+        fullName: 'Đăng Khoa',
+        jerseyNumber: 4,
+        role: 'PLAYER',
+        status: 'ACTIVE',
+        createdAt: '2025-01-01',
+      },
+      totalMatches: 11,
+      totalGoals: 3,
+      totalAssists: 3,
+      totalWins: 6,
+      totalDraws: 1,
+      totalLosses: 4,
+      totalSaves: 0,
+      totalMvp: 0,
+      winRate: 54.5,
+      updatedAt: new Date().toISOString(),
+      position: 'Trung vệ (CB)',
+      positionCode: 'CB',
+      mvpCount: 0,
+      form: ['L', 'W', 'W', 'L', 'W'],
+      teamName: 'Team A (Tây Ban Nha)',
     },
     {
       rank: 8,
@@ -228,14 +238,15 @@ export const LeaderboardPage: React.FC = () => {
       totalMvp: 0,
       winRate: 33.3,
       updatedAt: new Date().toISOString(),
-      position: 'CDM',
+      position: 'Tiền vệ phòng ngự (CDM)',
+      positionCode: 'CDM',
       mvpCount: 0,
       form: ['W', 'L', 'W', 'L', 'L'],
       teamName: 'Team B (Pháp)',
     },
   ];
 
-  const sortItems = useCallback((data: EnrichedLeaderboardItem[], mode: 'goals' | 'assists' | 'winrate' | 'mvp') => {
+  const sortItems = useCallback((data: EnrichedLeaderboardItem[], mode: SortMode) => {
     const cloned = [...data];
     if (mode === 'goals') {
       cloned.sort((a, b) => b.totalGoals - a.totalGoals || b.totalAssists - a.totalAssists);
@@ -257,11 +268,14 @@ export const LeaderboardPage: React.FC = () => {
       if (res.success && res.data && res.data.length > 0) {
         const enriched: EnrichedLeaderboardItem[] = res.data.map((item, idx) => {
           const matchedSample = sampleRoster.find((s) => s.user.username === item.user.username);
+          const mvp = item.totalMvp ?? matchedSample?.mvpCount ?? Math.max(0, Math.floor(item.totalGoals / 3));
+
           return {
             ...item,
-            position: matchedSample?.position || (idx === 0 ? 'ST' : idx === 1 ? 'CM' : 'CB'),
-            mvpCount: matchedSample?.mvpCount ?? Math.max(0, Math.floor(item.totalGoals / 3)),
-            totalMvp: item.totalMvp ?? matchedSample?.mvpCount ?? 0,
+            position: matchedSample?.position || (idx === 0 ? 'Tiền đạo (ST)' : idx === 1 ? 'Tiền vệ (CM)' : 'Hậu vệ (CB)'),
+            positionCode: matchedSample?.positionCode || (idx === 0 ? 'ST' : idx === 1 ? 'CM' : 'CB'),
+            mvpCount: mvp,
+            totalMvp: mvp,
             form: matchedSample?.form || ['W', 'W', 'W', 'L', 'W'],
             teamName: matchedSample?.teamName || (idx % 2 === 0 ? 'Team A (Tây Ban Nha)' : 'Team B (Pháp)'),
             isCurrentUser: user?.id === item.user.id,
@@ -282,7 +296,7 @@ export const LeaderboardPage: React.FC = () => {
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
-  const handleSortChange = (mode: 'goals' | 'assists' | 'winrate' | 'mvp') => {
+  const handleSortChange = (mode: SortMode) => {
     setSortMode(mode);
     const label =
       mode === 'goals'
@@ -292,10 +306,10 @@ export const LeaderboardPage: React.FC = () => {
         : mode === 'mvp'
         ? 'Điểm MVP'
         : 'Tỷ lệ thắng';
-    toast.success(`Đã sắp xếp BXH theo tiêu chí: ${label}`);
+    toast.success(`Đã sắp xếp: ${label}`);
   };
 
-  // Filtered by Search Query
+  // Lọc theo từ khoá tìm kiếm
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) return items;
     const q = searchQuery.toLowerCase().trim();
@@ -304,564 +318,450 @@ export const LeaderboardPage: React.FC = () => {
         item.user.fullName.toLowerCase().includes(q) ||
         item.user.username.toLowerCase().includes(q) ||
         (item.user.jerseyNumber && item.user.jerseyNumber.toString().includes(q)) ||
-        item.position.toLowerCase().includes(q)
+        item.position.toLowerCase().includes(q) ||
+        item.teamName.toLowerCase().includes(q)
     );
   }, [items, searchQuery]);
 
-  // Aggregate Metrics
-  const topScorer = useMemo(() => {
-    if (items.length === 0) return null;
-    return [...items].sort((a, b) => b.totalGoals - a.totalGoals)[0];
-  }, [items]);
+  // Top 3 Cầu thủ dẫn đầu (Podium)
+  const rank1 = items.find((i) => i.rank === 1) || items[0];
+  const rank2 = items.find((i) => i.rank === 2) || items[1];
+  const rank3 = items.find((i) => i.rank === 3) || items[2];
 
-  const topAssister = useMemo(() => {
-    if (items.length === 0) return null;
-    return [...items].sort((a, b) => b.totalAssists - a.totalAssists)[0];
-  }, [items]);
-
-  const topWinner = useMemo(() => {
-    if (items.length === 0) return null;
-    return [...items].sort((a, b) => b.winRate - a.winRate || b.totalWins - a.totalWins)[0];
-  }, [items]);
-
-  const totalGoalsLeague = useMemo(() => {
-    return items.reduce((acc, curr) => acc + (curr.totalGoals || 0), 0);
-  }, [items]);
-
-  const totalMatchesLeague = useMemo(() => {
-    return Math.max(14, ...items.map((i) => i.totalMatches || 0));
-  }, [items]);
-
-  const avgGoalsPerMatch = useMemo(() => {
-    return totalMatchesLeague > 0 ? (totalGoalsLeague / totalMatchesLeague).toFixed(2) : '0.00';
-  }, [totalGoalsLeague, totalMatchesLeague]);
+  const getPodiumBadgeText = (item: EnrichedLeaderboardItem) => {
+    if (sortMode === 'goals') return `${item.totalGoals} Bàn`;
+    if (sortMode === 'assists') return `${item.totalAssists} Kiến tạo`;
+    if (sortMode === 'mvp') return `${item.totalMvp || item.mvpCount} MVP`;
+    return `${item.winRate}% Thắng`;
+  };
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto font-sans pb-10">
-      {/* 1. Top Header Banner */}
-      <Card
-        elevation="glass"
-        glow
-        className="p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs"
-      >
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <Badge variant="primary" dot size="sm">
-                Live Standings
-              </Badge>
-              <span className="text-xs text-slate-500 font-space font-medium">
-                Saigon Sunday League · Mùa {season}
-              </span>
-            </div>
-            <h1 className="font-space font-black text-2xl sm:text-3xl text-slate-950 dark:text-white tracking-tight">
-              Bảng Xếp Hạng Câu Lạc Bộ
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-2xl font-space">
-              Theo dõi bảng phong độ, bàn thắng, kiến tạo, điểm số và hiệu suất thi đấu cá nhân qua từng vòng đấu.
-            </p>
-          </div>
-
-          {/* Season Selector */}
-          <div className="flex items-center gap-3">
-            <div className="w-52">
-              <Select
-                options={[
-                  { value: '2025', label: 'Mùa 2025 (Hiện tại)', icon: 'calendar_today' },
-                  { value: '2024', label: 'Mùa 2024 (Lưu trữ)', icon: 'history' },
-                  { value: 'Cup 2025', label: 'Hè Cup 2025', icon: 'military_tech' },
-                ]}
-                value={season}
-                onChange={(e) => {
-                  setSeason(e.target.value);
-                  toast.success(`Đã chuyển sang ${e.target.value}`);
-                }}
-              />
-            </div>
-          </div>
+    <div className="max-w-6xl mx-auto font-sans pb-12 transition-colors duration-300">
+      {/* ========================================================================= */}
+      {/* HEADER SECTION: Title + Sort Mode Tabs                                    */}
+      {/* ========================================================================= */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1 pt-1 mb-6">
+        <div>
+          <h1 className="font-space font-black text-3xl sm:text-4xl text-slate-900 dark:text-white tracking-tight">
+            Bảng Xếp Hạng
+          </h1>
+          <p className="text-xs font-space font-medium text-slate-500 dark:text-slate-400 mt-1">
+            Dữ liệu thống kê tích lũy toàn diện — CLB Bóng Đá Chim Mọc Cánh (CMC University)
+          </p>
         </div>
-      </Card>
 
-      {/* 2. Basic Aggregate Statistics Strip (4 Bento Cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Top Scorer Card */}
-        <Card
-          elevation="level1"
-          className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between group hover:border-red-400 transition-all"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase text-red-600 dark:text-red-400 tracking-wider flex items-center gap-1.5 font-space">
-              <span className="material-symbols-outlined text-lg">sports_soccer</span>
-              Vua Phá Lưới
-            </span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 font-mono">
-              #1 BÀN THẮNG
-            </span>
-          </div>
-          {topScorer ? (
-            <div className="flex items-center gap-3.5">
-              <Avatar
-                name={topScorer.user.fullName}
-                jerseyNumber={topScorer.user.jerseyNumber}
-                size="md"
-                showNumber
-                bgColor="#DC2626"
-              />
-              <div className="min-w-0">
-                <Link
-                  to={`/players/${topScorer.user.id}`}
-                  className="font-space font-bold text-sm text-slate-950 dark:text-white truncate block hover:text-red-600 transition-colors"
-                >
-                  {topScorer.user.fullName}
-                </Link>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="font-space font-black text-2xl text-slate-950 dark:text-white">
-                    {topScorer.totalGoals}
-                  </span>
-                  <span className="text-xs font-medium text-slate-600 dark:text-slate-400 font-space">
-                    bàn / {topScorer.totalMatches} trận
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-slate-400 italic py-2">Chưa có dữ liệu</p>
-          )}
-        </Card>
-
-        {/* Top Assister Card */}
-        <Card
-          elevation="level1"
-          className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between group hover:border-blue-400 transition-all"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase text-blue-600 dark:text-blue-400 tracking-wider flex items-center gap-1.5 font-space">
-              <span className="material-symbols-outlined text-lg">assistant_direction</span>
-              Vua Kiến Tạo
-            </span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-mono">
-              #1 KIẾN TẠO
-            </span>
-          </div>
-          {topAssister ? (
-            <div className="flex items-center gap-3.5">
-              <Avatar
-                name={topAssister.user.fullName}
-                jerseyNumber={topAssister.user.jerseyNumber}
-                size="md"
-                showNumber
-                bgColor="#2563EB"
-              />
-              <div className="min-w-0">
-                <Link
-                  to={`/players/${topAssister.user.id}`}
-                  className="font-space font-bold text-sm text-slate-950 dark:text-white truncate block hover:text-blue-600 transition-colors"
-                >
-                  {topAssister.user.fullName}
-                </Link>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="font-space font-black text-2xl text-slate-950 dark:text-white">
-                    {topAssister.totalAssists}
-                  </span>
-                  <span className="text-xs font-medium text-slate-600 dark:text-slate-400 font-space">
-                    kiến tạo
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-slate-400 italic py-2">Chưa có dữ liệu</p>
-          )}
-        </Card>
-
-        {/* Top Winner Card */}
-        <Card
-          elevation="level1"
-          className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between group hover:border-amber-400 transition-all"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase text-amber-700 dark:text-amber-400 tracking-wider flex items-center gap-1.5 font-space">
-              <span className="material-symbols-outlined text-lg">military_tech</span>
-              Vua Chiến Thắng
-            </span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-mono">
-              #1 TỶ LỆ THẮNG
-            </span>
-          </div>
-          {topWinner ? (
-            <div className="flex items-center gap-3.5">
-              <Avatar
-                name={topWinner.user.fullName}
-                jerseyNumber={topWinner.user.jerseyNumber}
-                size="md"
-                showNumber
-                bgColor="#D97706"
-              />
-              <div className="min-w-0">
-                <Link
-                  to={`/players/${topWinner.user.id}`}
-                  className="font-space font-bold text-sm text-slate-950 dark:text-white truncate block hover:text-amber-600 transition-colors"
-                >
-                  {topWinner.user.fullName}
-                </Link>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="font-space font-black text-2xl text-emerald-600 dark:text-emerald-400">
-                    {topWinner.winRate}%
-                  </span>
-                  <span className="text-xs font-medium text-slate-600 dark:text-slate-400 font-space">
-                    ({topWinner.totalWins} trận thắng)
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-slate-400 italic py-2">Chưa có dữ liệu</p>
-          )}
-        </Card>
-
-        {/* League Aggregate Overview Card */}
-        <Card
-          elevation="level1"
-          className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase text-emerald-700 dark:text-emerald-400 tracking-wider flex items-center gap-1.5 font-space">
-              <span className="material-symbols-outlined text-lg">analytics</span>
-              Thống Kê Giải
-            </span>
-            <Badge variant="primary" size="sm">
-              {items.length} Cầu thủ
-            </Badge>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-center">
-            <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
-              <span className="text-[11px] font-space font-bold text-slate-600 dark:text-slate-400 block">
-                Tổng Bàn Thắng
-              </span>
-              <span className="font-space font-black text-xl text-slate-950 dark:text-white">
-                {totalGoalsLeague}
-              </span>
-            </div>
-            <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
-              <span className="text-[11px] font-space font-bold text-slate-600 dark:text-slate-400 block">
-                Bàn / Trận
-              </span>
-              <span className="font-space font-black text-xl text-slate-950 dark:text-white">
-                {avgGoalsPerMatch}
-              </span>
-            </div>
-          </div>
-        </Card>
+        {/* Metric Sort Tabs */}
+        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-slate-200/70 dark:bg-[#151D2E] border border-slate-300/70 dark:border-slate-800 text-xs font-space font-bold self-start md:self-auto">
+          <button
+            type="button"
+            onClick={() => handleSortChange('goals')}
+            className={clsx(
+              'px-4 py-1.5 rounded-xl transition-all cursor-pointer',
+              sortMode === 'goals'
+                ? 'bg-white dark:bg-[#202B42] text-slate-950 dark:text-white shadow-xs border border-slate-200 dark:border-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
+            )}
+          >
+            Bàn Thắng
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSortChange('assists')}
+            className={clsx(
+              'px-4 py-1.5 rounded-xl transition-all cursor-pointer',
+              sortMode === 'assists'
+                ? 'bg-white dark:bg-[#202B42] text-slate-950 dark:text-white shadow-xs border border-slate-200 dark:border-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
+            )}
+          >
+            Kiến Tạo
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSortChange('winrate')}
+            className={clsx(
+              'px-4 py-1.5 rounded-xl transition-all cursor-pointer',
+              sortMode === 'winrate'
+                ? 'bg-white dark:bg-[#202B42] text-slate-950 dark:text-white shadow-xs border border-slate-200 dark:border-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
+            )}
+          >
+            Tỷ Lệ Thắng
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSortChange('mvp')}
+            className={clsx(
+              'px-4 py-1.5 rounded-xl transition-all cursor-pointer',
+              sortMode === 'mvp'
+                ? 'bg-white dark:bg-[#202B42] text-slate-950 dark:text-white shadow-xs border border-slate-200 dark:border-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
+            )}
+          >
+            Điểm MVP
+          </button>
+        </div>
       </div>
 
-      {/* 3. Full-Width Standings Table */}
-      <Card
-        elevation="level1"
-        className="p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs"
-      >
-        {/* Table Top Toolbar */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold">
-              <span className="material-symbols-outlined text-xl">leaderboard</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-space font-black text-lg text-slate-950 dark:text-white">
-                  Bảng Xếp Hạng Chi Tiết
-                </h2>
-                <Badge variant="neutral" size="sm">
-                  {filteredItems.length} cầu thủ
-                </Badge>
+      {/* ========================================================================= */}
+      {/* 3D TOP 3 PODIUM SECTION                                                   */}
+      {/* ========================================================================= */}
+      <div className="relative pt-6 pb-2 flex justify-center items-end select-none mb-6">
+        <div className="flex items-end justify-center gap-2 sm:gap-4 max-w-lg w-full px-4">
+          {/* Hạng 2 (Bục bên trái) */}
+          {rank2 && (
+            <div className="flex-1 flex flex-col items-center">
+              <div className="flex flex-col items-center mb-2.5">
+                <div className="relative mb-1">
+                  <Avatar
+                    name={rank2.user.fullName}
+                    jerseyNumber={rank2.user.jerseyNumber}
+                    size="md"
+                    showNumber
+                    bgColor="#8B5CF6"
+                  />
+                </div>
+                <span className="font-space font-bold text-xs text-slate-900 dark:text-slate-100 text-center line-clamp-1 max-w-[110px]">
+                  {rank2.user.fullName}
+                </span>
+                <div className="mt-1 px-3 py-0.5 rounded-full bg-[#3B82F6]/15 border border-[#3B82F6]/40 text-[#2563EB] dark:text-[#60A5FA] font-space font-black text-xs shadow-xs">
+                  {getPodiumBadgeText(rank2)}
+                </div>
               </div>
-              <p className="text-xs text-slate-500 font-space mt-0.5">
-                Điểm số và chỉ số thi đấu đồng bộ tự động sau mỗi lượt trận
-              </p>
+
+              {/* Khối 3D Bục số 2 */}
+              <div className="w-full flex flex-col items-center">
+                <div className="w-full h-4 bg-[#8FA7FB] dark:bg-[#7893FA] rounded-t-xl opacity-90 border-t border-white/40 shadow-inner" />
+                <div className="w-full h-28 sm:h-32 bg-gradient-to-b from-[#7F9BFA] via-[#6C8BFA] to-[#5C7BF0] flex items-center justify-center rounded-b-xl shadow-lg border-b border-[#4A69DE]">
+                  <span className="font-space font-black text-5xl sm:text-6xl text-white/95 drop-shadow-[0_4px_8px_rgba(30,58,138,0.35)]">
+                    2
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Hạng 1 (Bục ở giữa - Cao nhất) */}
+          {rank1 && (
+            <div className="flex-1 flex flex-col items-center z-10">
+              <div className="flex flex-col items-center mb-2.5">
+                {/* Vương miện vàng */}
+                <div className="w-7 h-7 rounded-xl bg-amber-400/20 border border-amber-400/60 flex items-center justify-center text-amber-500 mb-1 shadow-[0_0_14px_rgba(251,191,36,0.5)]">
+                  <span className="material-symbols-outlined text-base font-black">military_tech</span>
+                </div>
+                <div className="relative mb-1 ring-2 ring-amber-400/90 rounded-full p-0.5 shadow-[0_0_18px_rgba(251,191,36,0.3)]">
+                  <Avatar
+                    name={rank1.user.fullName}
+                    jerseyNumber={rank1.user.jerseyNumber}
+                    size="lg"
+                    showNumber
+                    bgColor="#0EA5E9"
+                  />
+                </div>
+                <span className="font-space font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 text-center line-clamp-1 max-w-[130px]">
+                  {rank1.user.fullName}
+                </span>
+                <div className="mt-1 px-3.5 py-0.5 rounded-full bg-[#3B82F6]/15 border border-[#3B82F6]/40 text-[#2563EB] dark:text-[#60A5FA] font-space font-black text-xs shadow-xs">
+                  {getPodiumBadgeText(rank1)}
+                </div>
+              </div>
+
+              {/* Khối 3D Bục số 1 */}
+              <div className="w-full flex flex-col items-center">
+                <div className="w-full h-5 bg-[#A4B8FD] dark:bg-[#90A7FD] rounded-t-xl border-t border-white/50 shadow-inner" />
+                <div className="w-full h-36 sm:h-44 bg-gradient-to-b from-[#8FA7FB] via-[#7B98FB] to-[#6887F6] flex items-center justify-center rounded-b-xl shadow-xl border-b-2 border-[#4A69DE]">
+                  <span className="font-space font-black text-6xl sm:text-7xl text-white drop-shadow-[0_6px_12px_rgba(30,58,138,0.4)]">
+                    1
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Hạng 3 (Bục bên phải) */}
+          {rank3 && (
+            <div className="flex-1 flex flex-col items-center">
+              <div className="flex flex-col items-center mb-2.5">
+                <div className="relative mb-1">
+                  <Avatar
+                    name={rank3.user.fullName}
+                    jerseyNumber={rank3.user.jerseyNumber}
+                    size="md"
+                    showNumber
+                    bgColor="#10B981"
+                  />
+                </div>
+                <span className="font-space font-bold text-xs text-slate-900 dark:text-slate-100 text-center line-clamp-1 max-w-[110px]">
+                  {rank3.user.fullName}
+                </span>
+                <div className="mt-1 px-3 py-0.5 rounded-full bg-[#3B82F6]/15 border border-[#3B82F6]/40 text-[#2563EB] dark:text-[#60A5FA] font-space font-black text-xs shadow-xs">
+                  {getPodiumBadgeText(rank3)}
+                </div>
+              </div>
+
+              {/* Khối 3D Bục số 3 */}
+              <div className="w-full flex flex-col items-center">
+                <div className="w-full h-4 bg-[#7F9BFA] dark:bg-[#6C8BFA] rounded-t-xl opacity-90 border-t border-white/40 shadow-inner" />
+                <div className="w-full h-24 sm:h-28 bg-gradient-to-b from-[#6F8CFA] via-[#5D7CF2] to-[#4C6CE6] flex items-center justify-center rounded-b-xl shadow-lg border-b border-[#3B59D0]">
+                  <span className="font-space font-black text-5xl sm:text-6xl text-white/90 drop-shadow-[0_4px_8px_rgba(30,58,138,0.35)]">
+                    3
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* DANH SÁCH BẢNG XẾP HẠNG CẦU THỦ (CLEAN TABLE FORMAT)                     */}
+      {/* ========================================================================= */}
+      <div
+        className={clsx(
+          'rounded-[28px] border transition-all shadow-sm overflow-hidden flex flex-col',
+          'bg-white dark:bg-[#131927] border-slate-200 dark:border-slate-800/90'
+        )}
+      >
+        {/* Header Toolbar */}
+        <div className="p-5 sm:p-6 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 border-b border-slate-100 dark:border-slate-800/80">
+          <div className="flex items-center gap-2.5">
+            <span className="material-symbols-outlined text-slate-400 text-xl">leaderboard</span>
+            <div>
+              <h3 className="font-space font-bold text-base sm:text-lg text-slate-900 dark:text-white leading-tight">
+                Danh Sách Cầu Thủ
+              </h3>
+              <span className="text-[11px] font-space text-slate-400 font-medium">
+                Toàn bộ thống kê thi đấu ({filteredItems.length} cầu thủ)
+              </span>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Search Input */}
-            <div className="relative flex items-center">
-              <span className="material-symbols-outlined absolute left-3 text-slate-400 text-sm pointer-events-none">
-                search
-              </span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm cầu thủ, số áo, vị trí..."
-                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-950 dark:text-slate-100 placeholder:text-slate-400 text-xs rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 w-48 sm:w-60 font-space transition-all"
-              />
-            </div>
-
-            {/* Filter Tabs */}
-            <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-space font-bold text-slate-600 dark:text-slate-400">
-              <button
-                type="button"
-                onClick={() => handleSortChange('goals')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  sortMode === 'goals'
-                    ? 'bg-white dark:bg-slate-700 text-slate-950 dark:text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
-                }`}
-              >
-                Bàn Thắng (G)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSortChange('assists')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  sortMode === 'assists'
-                    ? 'bg-white dark:bg-slate-700 text-slate-950 dark:text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
-                }`}
-              >
-                Kiến Tạo (A)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSortChange('winrate')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  sortMode === 'winrate'
-                    ? 'bg-white dark:bg-slate-700 text-slate-950 dark:text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
-                }`}
-              >
-                Tỷ Lệ Thắng (%)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSortChange('mvp')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  sortMode === 'mvp'
-                    ? 'bg-white dark:bg-slate-700 text-slate-950 dark:text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
-                }`}
-              >
-                Điểm MVP
-              </button>
-            </div>
+          {/* Search Bar */}
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">
+              search
+            </span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kiếm cầu thủ, đội bóng, vị trí..."
+              className="bg-slate-100 dark:bg-[#0E1422] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 text-xs rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-indigo-500 w-full sm:w-64 font-space transition-all"
+            />
           </div>
         </div>
 
         {/* Table Content */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse font-space">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-4 w-12 text-center">#</th>
-                <th className="py-3 px-4 min-w-[200px]">Cầu Thủ</th>
-                <th className="py-3 px-3 text-center">Vị Trí</th>
-                <th className="py-3 px-3 text-center" title="Số trận thi đấu">
-                  Trận
-                </th>
-                <th className="py-3 px-3 text-center text-emerald-600 font-bold" title="Trận Thắng">
-                  T
-                </th>
-                <th className="py-3 px-3 text-center text-slate-500 font-bold" title="Trận Hòa">
-                  H
-                </th>
-                <th className="py-3 px-3 text-center text-rose-500 font-bold" title="Trận Thua">
-                  B
+              <tr className="border-b border-slate-100 dark:border-slate-800/80 text-[11px] font-space font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-slate-50/50 dark:bg-[#0E1422]/50">
+                <th className="py-3 px-4 sm:px-6 w-14 text-center">Hạng</th>
+                <th className="py-3 px-4">Cầu thủ</th>
+                <th className="py-3 px-3 text-center">Trận</th>
+                <th
+                  className={clsx(
+                    'py-3 px-3 text-center transition-colors',
+                    sortMode === 'goals' ? 'text-indigo-600 dark:text-indigo-400' : ''
+                  )}
+                >
+                  Bàn
                 </th>
                 <th
-                  className="py-3 px-3 text-center text-slate-950 dark:text-white font-extrabold"
-                  title="Bàn Thắng (Goals)"
+                  className={clsx(
+                    'py-3 px-3 text-center transition-colors',
+                    sortMode === 'assists' ? 'text-indigo-600 dark:text-indigo-400' : ''
+                  )}
                 >
-                  G
+                  Kiến tạo
                 </th>
-                <th className="py-3 px-3 text-center text-blue-600 font-bold" title="Kiến Tạo (Assists)">
-                  A
-                </th>
-                <th className="py-3 px-3 text-center text-teal-600 font-bold" title="Cứu Thua (Saves)">
-                  S
-                </th>
-                <th className="py-3 px-3 text-center text-amber-600 font-bold" title="Số lần xuất sắc nhất trận">
+                <th
+                  className={clsx(
+                    'py-3 px-3 text-center transition-colors',
+                    sortMode === 'mvp' ? 'text-indigo-600 dark:text-indigo-400' : ''
+                  )}
+                >
                   MVP
                 </th>
-                <th className="py-3 px-4 text-center min-w-[120px]">5 Trận Gần Nhất</th>
-                <th className="py-3 px-4 text-right min-w-[140px]">Tỷ Lệ Thắng</th>
+                <th className="py-3 px-4 text-center">5 Trận gần nhất</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-space text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan={13} className="py-16 text-center text-slate-400 font-space">
-                    <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                    Đang tải dữ liệu bảng xếp hạng...
+                  <td colSpan={7} className="py-12 text-center text-xs text-slate-400">
+                    Đang tải danh sách bảng xếp hạng...
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="py-16 text-center text-slate-400 italic font-space">
-                    Không tìm thấy cầu thủ nào phù hợp với tìm kiếm
+                  <td colSpan={7} className="py-12 text-center text-xs text-slate-400 italic">
+                    Không tìm thấy cầu thủ phù hợp
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => (
-                  <tr
-                    key={item.user.id}
-                    className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors group ${
-                      item.isCurrentUser ? 'bg-emerald-50/40 dark:bg-emerald-950/20' : ''
-                    }`}
-                  >
-                    {/* Rank Badge */}
-                    <td className="py-3.5 px-4 text-center">
-                      {item.rank === 1 ? (
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 font-black text-xs shadow-xs">
-                          1
-                        </span>
-                      ) : item.rank === 2 ? (
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-black text-xs shadow-xs">
-                          2
-                        </span>
-                      ) : item.rank === 3 ? (
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-orange-100 dark:bg-orange-900/60 text-orange-800 dark:text-orange-300 border border-orange-300 dark:border-orange-700 font-black text-xs shadow-xs">
-                          3
-                        </span>
-                      ) : (
-                        <span className="font-bold text-slate-600 dark:text-slate-400 text-xs">
-                          {item.rank}
-                        </span>
+                filteredItems.map((item) => {
+                  return (
+                    <tr
+                      key={item.user.id}
+                      className={clsx(
+                        'transition-colors duration-150 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 group',
+                        item.isCurrentUser
+                          ? 'bg-emerald-50/40 dark:bg-emerald-950/20'
+                          : ''
                       )}
-                    </td>
-
-                    {/* Player Profile & Team */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar
-                          name={item.user.fullName}
-                          jerseyNumber={item.user.jerseyNumber}
-                          size="md"
-                          showNumber
-                        />
-                        <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <Link
-                              to={`/players/${item.user.id}`}
-                              className="font-bold text-slate-950 dark:text-white text-sm hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors truncate"
-                            >
-                              {item.user.fullName}
-                            </Link>
-                            {item.isCurrentUser && (
-                              <span className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 text-[10px] font-bold px-1.5 py-0.2 rounded">
-                                BẠN
-                              </span>
-                            )}
-                            {item.user.role === 'ADMIN' && (
-                              <span className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-[9px] font-bold px-1 rounded uppercase">
-                                ADMIN
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                            {item.teamName} · #{item.user.jerseyNumber || '—'}
-                          </span>
+                    >
+                      {/* 1. Hạng (Rank Badge) */}
+                      <td className="py-3.5 px-4 sm:px-6 text-center">
+                        <div
+                          className={clsx(
+                            'w-7 h-7 mx-auto rounded-full flex items-center justify-center font-black text-xs transition-transform group-hover:scale-105',
+                            item.rank === 1
+                              ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-700 shadow-xs'
+                              : item.rank === 2
+                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600'
+                              : item.rank === 3
+                              ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-500 border border-amber-400/60 dark:border-amber-700'
+                              : 'text-slate-500 dark:text-slate-400 font-bold'
+                          )}
+                        >
+                          {item.rank}
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Position */}
-                    <td className="py-3.5 px-3 text-center">
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold text-[11px]">
-                        {item.position}
-                      </span>
-                    </td>
-
-                    {/* Matches */}
-                    <td className="py-3.5 px-3 text-center font-bold text-slate-700 dark:text-slate-300">
-                      {item.totalMatches}
-                    </td>
-
-                    {/* Wins */}
-                    <td className="py-3.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
-                      {item.totalWins}
-                    </td>
-
-                    {/* Draws */}
-                    <td className="py-3.5 px-3 text-center font-medium text-slate-600 dark:text-slate-400">
-                      {item.totalDraws ?? (item.totalMatches - item.totalWins - (item.totalLosses || 0))}
-                    </td>
-
-                    {/* Losses */}
-                    <td className="py-3.5 px-3 text-center font-medium text-rose-500 dark:text-rose-400">
-                      {item.totalLosses ?? 0}
-                    </td>
-
-                    {/* Goals */}
-                    <td className="py-3.5 px-3 text-center font-black text-slate-950 dark:text-white text-sm">
-                      {item.totalGoals}
-                    </td>
-
-                    {/* Assists */}
-                    <td className="py-3.5 px-3 text-center font-bold text-blue-600 dark:text-blue-400">
-                      {item.totalAssists}
-                    </td>
-
-                    {/* Saves */}
-                    <td className="py-3.5 px-3 text-center font-bold text-teal-600 dark:text-teal-400">
-                      {item.totalSaves ?? 0}
-                    </td>
-
-                    {/* MVP */}
-                    <td className="py-3.5 px-3 text-center font-bold text-amber-600 dark:text-amber-400">
-                      {item.totalMvp ?? item.mvpCount}
-                    </td>
-
-                    {/* Form Pills (5 matches) */}
-                    <td className="py-3.5 px-4 text-center">
-                      <div className="inline-flex items-center gap-1 justify-center">
-                        {item.form.map((res, fIdx) => (
-                          <span
-                            key={fIdx}
-                            className={`w-5 h-5 rounded-md text-white text-[10px] font-black flex items-center justify-center shadow-2xs ${
-                              res === 'W'
-                                ? 'bg-emerald-600'
-                                : res === 'D'
-                                ? 'bg-slate-400'
-                                : 'bg-rose-500'
-                            }`}
-                            title={res === 'W' ? 'Thắng' : res === 'D' ? 'Hòa' : 'Thua'}
-                          >
-                            {res}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-
-                    {/* Win Rate Progress */}
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="inline-flex items-center gap-2.5 justify-end">
-                        <span className="font-black text-xs text-emerald-600 dark:text-emerald-400">
-                          {item.winRate}%
-                        </span>
-                        <div className="w-16 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden hidden sm:block border border-slate-200 dark:border-slate-700">
-                          <div
-                            className="h-full bg-gradient-to-r from-emerald-600 to-teal-400 rounded-full"
-                            style={{ width: `${Math.min(item.winRate, 100)}%` }}
+                      {/* 2. Cầu thủ (Avatar + Tên + Badge + Đội bóng) */}
+                      <td className="py-3.5 px-4 min-w-[200px]">
+                        <div className="flex items-center gap-3">
+                          <Avatar
+                            name={item.user.fullName}
+                            jerseyNumber={item.user.jerseyNumber}
+                            size="md"
+                            showNumber
+                            bgColor={
+                              item.rank === 1
+                                ? '#0EA5E9'
+                                : item.rank === 2
+                                ? '#8B5CF6'
+                                : item.rank === 3
+                                ? '#10B981'
+                                : undefined
+                            }
                           />
+                          <div className="flex flex-col min-w-0">
+                            {/* Tên cầu thủ + Badge */}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <Link
+                                to={`/players/${item.user.id}`}
+                                className="font-bold text-sm text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate"
+                              >
+                                {item.user.fullName}
+                              </Link>
+                              <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold border border-slate-200 dark:border-slate-700">
+                                {item.positionCode}
+                              </span>
+                              {item.isCurrentUser && (
+                                <span className="px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-black border border-emerald-300 dark:border-emerald-800">
+                                  BẠN
+                                </span>
+                              )}
+                              {item.user.role === 'ADMIN' && (
+                                <span className="px-1.5 py-0.2 rounded bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 text-[10px] font-black border border-blue-200 dark:border-blue-800">
+                                  ADMIN
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Đội bóng & Số áo */}
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                              {item.teamName} • #{item.user.jerseyNumber || item.rank}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+
+                      {/* 3. Số Trận */}
+                      <td className="py-3.5 px-3 text-center text-slate-600 dark:text-slate-300 font-medium">
+                        {item.totalMatches}
+                      </td>
+
+                      {/* 4. Bàn Thắng */}
+                      <td className="py-3.5 px-3 text-center">
+                        <span
+                          className={clsx(
+                            'font-black text-sm sm:text-base',
+                            sortMode === 'goals'
+                              ? 'text-indigo-600 dark:text-indigo-400 scale-105 inline-block'
+                              : 'text-slate-950 dark:text-white'
+                          )}
+                        >
+                          {item.totalGoals}
+                        </span>
+                      </td>
+
+                      {/* 5. Kiến Tạo */}
+                      <td className="py-3.5 px-3 text-center">
+                        <span
+                          className={clsx(
+                            'font-medium text-xs sm:text-sm',
+                            sortMode === 'assists'
+                              ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+                              : 'text-slate-600 dark:text-slate-300'
+                          )}
+                        >
+                          {item.totalAssists}
+                        </span>
+                      </td>
+
+                      {/* 6. MVP (Ngôi sao vàng + Số lần) */}
+                      <td className="py-3.5 px-3 text-center">
+                        <div
+                          className={clsx(
+                            'inline-flex items-center gap-1 font-bold',
+                            sortMode === 'mvp'
+                              ? 'text-amber-500 font-black scale-105'
+                              : 'text-amber-500'
+                          )}
+                        >
+                          <span className="text-xs">★</span>
+                          <span>{item.totalMvp || item.mvpCount}</span>
+                        </div>
+                      </td>
+
+                      {/* 7. Phong độ 5 trận gần nhất (5 W/D/L Badges) */}
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="inline-flex items-center gap-1 justify-center">
+                          {item.form.map((result, idx) => (
+                            <span
+                              key={idx}
+                              className={clsx(
+                                'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-2xs',
+                                result === 'W'
+                                  ? 'bg-emerald-500'
+                                  : result === 'D'
+                                  ? 'bg-slate-400 dark:bg-slate-600'
+                                  : 'bg-rose-500'
+                              )}
+                              title={
+                                result === 'W'
+                                  ? 'Thắng'
+                                  : result === 'D'
+                                  ? 'Hoà'
+                                  : 'Thua'
+                              }
+                            >
+                              {result}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
-
-        {/* Table Footer Summary */}
-        <div className="px-5 py-3.5 bg-slate-50 dark:bg-slate-900/80 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400 font-space">
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="material-symbols-outlined text-emerald-600 text-sm">verified</span>
-            Dữ liệu ghi nhận chính xác theo thể thức thi đấu 7v7 Saigon Sunday League
-          </span>
-          <span className="font-bold text-slate-700 dark:text-slate-300">
-            Hiển thị {filteredItems.length} / {items.length} cầu thủ
-          </span>
-        </div>
-      </Card>
+      </div>
     </div>
   );
 };
