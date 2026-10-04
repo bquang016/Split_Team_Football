@@ -6,6 +6,7 @@ import { PlayerPickCard } from './PlayerPickCard';
 import { Button, Badge, Avatar } from '../../ui';
 import { SpinWheel } from '../spin/SpinWheel';
 import { spinService } from '../../services/spinService';
+import { matchService } from '../../services/matchService';
 import { useAuthStore } from '../../store/authStore';
 import { useWebSocketStore } from '../../store/websocketStore';
 import { TEAM_A_NAME, TEAM_B_NAME, TEAM_A_COLOR, TEAM_B_COLOR } from '../../utils/constants';
@@ -37,6 +38,7 @@ export const PickList: React.FC<PickListProps> = ({
   const [spinWinner, setSpinWinner] = useState<User | null>(null);
   const [spinCompletedWinner, setSpinCompletedWinner] = useState<User | null>(null);
   const [timeLeftSec, setTimeLeftSec] = useState<number>(60);
+  const [submittingProceed, setSubmittingProceed] = useState(false);
 
   const { user, isAdmin } = useAuthStore();
   const adminActive = isAdmin();
@@ -54,6 +56,35 @@ export const PickList: React.FC<PickListProps> = ({
 
   const isCaptainA = user?.id === captainA?.id;
   const isCaptainB = user?.id === captainB?.id;
+
+  const captainAConfirmed = Boolean(match?.captainAConfirmedProceed);
+  const captainBConfirmed = Boolean(match?.captainBConfirmedProceed);
+  const consensusCount = (captainAConfirmed ? 1 : 0) + (captainBConfirmed ? 1 : 0);
+
+  const canConfirmProceed = adminActive || isCaptainA || isCaptainB;
+  const myConfirmed = isCaptainA ? captainAConfirmed : isCaptainB ? captainBConfirmed : false;
+
+  const handleConfirmProceed = async () => {
+    if (!matchId) return;
+    setSubmittingProceed(true);
+    try {
+      const res = await matchService.confirmProceedToTrade(matchId);
+      if (res.success) {
+        toast.success(
+          adminActive
+            ? 'Quản trị viên đã duyệt chuyển sang bước Chỉnh sửa (Trade)!'
+            : myConfirmed
+            ? 'Đã hủy xác nhận chuyển bước'
+            : 'Đã xác nhận chuyển bước! Đang đợi đội trưởng còn lại...'
+        );
+        onMatchUpdate?.();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Không thể xác nhận chuyển bước');
+    } finally {
+      setSubmittingProceed(false);
+    }
+  };
 
   // Turn calculation:
   // Count non-host players already picked to each team
@@ -362,17 +393,69 @@ export const PickList: React.FC<PickListProps> = ({
                   </p>
                 )}
 
-                {/* Button to proceed if picking completed */}
-                {availablePlayers.length === 0 && onProceedToTrade && (
-                  <Button
-                    variant="primary"
-                    size="md"
-                    rightIcon="arrow_forward"
-                    onClick={onProceedToTrade}
-                    className="mt-1 shadow-lg shadow-emerald-500/30"
-                  >
-                    Sang Bước Chỉnh Sửa
-                  </Button>
+                {/* Consensus Proceed to Trade Section when picking completed */}
+                {availablePlayers.length === 0 && (
+                  <div className="mt-3 w-full max-w-sm p-3.5 rounded-2xl bg-slate-900/90 border border-emerald-500/40 shadow-xl shadow-emerald-500/10 flex flex-col items-center gap-2.5 animate-in fade-in zoom-in duration-300">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-emerald-400 text-lg">fact_check</span>
+                      <span className="text-xs font-space font-black text-white uppercase tracking-wider">
+                        Đã chọn xong đội hình
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-300 font-space text-center leading-relaxed">
+                      Cần <strong className="text-amber-400">cả 2 Đội trưởng đồng ý (2/2)</strong> để chuyển sang bước Chỉnh sửa (Trade).
+                    </p>
+
+                    {/* Consensus Status Badges */}
+                    <div className="flex items-center justify-center gap-2 w-full py-1 text-xs font-space">
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-[11px] ${captainAConfirmed ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' : 'bg-slate-800/80 border-slate-700 text-slate-400'}`}>
+                        <span className="material-symbols-outlined text-sm">
+                          {captainAConfirmed ? 'check_circle' : 'pending'}
+                        </span>
+                        <span className="font-bold truncate max-w-[100px]">
+                          {captainA?.fullName || 'ĐT A'}
+                        </span>
+                      </div>
+
+                      <span className="text-slate-500 font-bold font-mono text-[10px]">VS</span>
+
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-[11px] ${captainBConfirmed ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' : 'bg-slate-800/80 border-slate-700 text-slate-400'}`}>
+                        <span className="material-symbols-outlined text-sm">
+                          {captainBConfirmed ? 'check_circle' : 'pending'}
+                        </span>
+                        <span className="font-bold truncate max-w-[100px]">
+                          {captainB?.fullName || 'ĐT B'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] font-space font-black text-amber-400">
+                      Đồng thuận: {consensusCount}/2
+                    </div>
+
+                    {/* Action button */}
+                    {canConfirmProceed ? (
+                      <Button
+                        variant={myConfirmed ? 'emerald' : 'primary'}
+                        size="sm"
+                        leftIcon={myConfirmed ? 'check_circle' : 'how_to_reg'}
+                        isLoading={submittingProceed}
+                        onClick={handleConfirmProceed}
+                        className="w-full font-space font-bold shadow-md shadow-emerald-500/20"
+                      >
+                        {adminActive
+                          ? 'Admin: Chốt duyệt sang Trade (2/2)'
+                          : myConfirmed
+                          ? 'Đã xác nhận (Nhấn để hủy)'
+                          : 'Xác nhận sang Bước Chỉnh Sửa'}
+                      </Button>
+                    ) : (
+                      <span className="text-[11px] text-slate-400 font-space italic">
+                        Đang chờ 2 Đội trưởng nhấn xác nhận...
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             )}

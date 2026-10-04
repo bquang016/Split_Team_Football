@@ -92,6 +92,11 @@ export interface Match {
   // Bước 3: Đội thắng quay lượt chọn đầu & thời điểm bắt đầu lượt
   firstPickTeam?: 'A' | 'B' | null;
   pickTurnStartedAt?: string | null;
+  tradeWindowStartedAt?: string | null;
+  captainAConfirmedProceed?: boolean;
+  captainBConfirmedProceed?: boolean;
+  captainAConfirmedNoTrade?: boolean;
+  captainBConfirmedNoTrade?: boolean;
   // Timeline
   startAt?: string;    // Khi IN_PROGRESS bắt đầu
   endAt?: string;      // Khi COMPLETED

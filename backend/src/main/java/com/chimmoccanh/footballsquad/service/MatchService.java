@@ -9,6 +9,7 @@ import com.chimmoccanh.footballsquad.dto.response.MatchParticipantDto;
 import com.chimmoccanh.footballsquad.dto.response.SpinSessionDto;
 import com.chimmoccanh.footballsquad.exception.BadRequestException;
 import com.chimmoccanh.footballsquad.exception.ResourceNotFoundException;
+import com.chimmoccanh.footballsquad.exception.UnauthorizedException;
 import com.chimmoccanh.footballsquad.model.Match;
 import com.chimmoccanh.footballsquad.model.MatchGoal;
 import com.chimmoccanh.footballsquad.model.MatchParticipant;
@@ -140,6 +141,9 @@ public class MatchService {
         validateStatusTransition(match.getStatus(), newStatus);
 
         match.setStatus(newStatus);
+        if (newStatus == MatchStatus.TRADE_WINDOW && match.getTradeWindowStartedAt() == null) {
+            match.setTradeWindowStartedAt(LocalDateTime.now());
+        }
         if (newStatus == MatchStatus.IN_PROGRESS && match.getStartAt() == null) {
             match.setStartAt(LocalDateTime.now());
         } else if (newStatus == MatchStatus.COMPLETED && match.getEndAt() == null) {
@@ -467,5 +471,122 @@ public class MatchService {
                 leaderboardService.updateUserStatsInLeaderboard(participant.getUser().getId());
             }
         }
+    }
+
+    /**
+     * Đội trưởng xác nhận chuyển từ PLAYER_PICKING sang TRADE_WINDOW.
+     * Cả 2 đội trưởng đồng ý (2/2) thì hệ thống mới tự động chuyển bước sang TRADE_WINDOW.
+     */
+    @Transactional
+    public MatchDto confirmProceedToTrade(UUID matchId, User user) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        if (match.getStatus() != MatchStatus.PLAYER_PICKING) {
+            if (match.getStatus() == MatchStatus.TRADE_WINDOW || match.getStatus() == MatchStatus.IN_PROGRESS || match.getStatus() == MatchStatus.COMPLETED) {
+                return getMatchDetails(matchId);
+            }
+            throw new BadRequestException("Trận đấu không ở bước Chọn cầu thủ (PLAYER_PICKING)");
+        }
+
+        Optional<MatchParticipant> participantOpt = participantRepository.findByMatchIdAndUserId(matchId, user.getId());
+        boolean isAdmin = user.getRole() == UserRole.ADMIN;
+        boolean isCaptain = participantOpt.isPresent() && Boolean.TRUE.equals(participantOpt.get().getIsHost());
+
+        if (!isAdmin && !isCaptain) {
+            throw new UnauthorizedException("Chỉ Đội trưởng hoặc Quản trị viên mới có quyền thực hiện thao tác này");
+        }
+
+        if (isCaptain) {
+            Team team = participantOpt.get().getTeam();
+            if (team == Team.A) {
+                match.setCaptainAConfirmedProceed(!match.isCaptainAConfirmedProceed());
+            } else if (team == Team.B) {
+                match.setCaptainBConfirmedProceed(!match.isCaptainBConfirmedProceed());
+            }
+        }
+
+        if (isAdmin && !isCaptain) {
+            // Admin can confirm both directly
+            match.setCaptainAConfirmedProceed(true);
+            match.setCaptainBConfirmedProceed(true);
+        }
+
+        if (match.isCaptainAConfirmedProceed() && match.isCaptainBConfirmedProceed()) {
+            match.setStatus(MatchStatus.TRADE_WINDOW);
+            if (match.getTradeWindowStartedAt() == null) {
+                match.setTradeWindowStartedAt(LocalDateTime.now());
+            }
+        }
+
+        Match saved = matchRepository.save(match);
+        MatchDto dto = getMatchDetails(saved.getId());
+        notificationService.broadcastMatchStatus(matchId, dto);
+        return dto;
+    }
+
+    /**
+     * Đội trưởng xác nhận "Không chỉnh sửa" tại bước TRADE_WINDOW.
+     * Cả 2 đội trưởng đồng ý (2/2) thì hệ thống tự động chuyển sang IN_PROGRESS.
+     */
+    @Transactional
+    public MatchDto confirmNoTrade(UUID matchId, User user) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        if (match.getStatus() != MatchStatus.TRADE_WINDOW) {
+            if (match.getStatus() == MatchStatus.IN_PROGRESS || match.getStatus() == MatchStatus.COMPLETED) {
+                return getMatchDetails(matchId);
+            }
+            throw new BadRequestException("Trận đấu không ở bước Chỉnh sửa đội hình (TRADE_WINDOW)");
+        }
+
+        // If 10 minutes have passed since trade window started, auto-transition to IN_PROGRESS
+        boolean isExpired = match.getTradeWindowStartedAt() != null &&
+                match.getTradeWindowStartedAt().plusMinutes(10).isBefore(LocalDateTime.now());
+        if (isExpired) {
+            match.setStatus(MatchStatus.IN_PROGRESS);
+            if (match.getStartAt() == null) {
+                match.setStartAt(LocalDateTime.now());
+            }
+            Match saved = matchRepository.save(match);
+            MatchDto dto = getMatchDetails(saved.getId());
+            notificationService.broadcastMatchStatus(matchId, dto);
+            return dto;
+        }
+
+        Optional<MatchParticipant> participantOpt = participantRepository.findByMatchIdAndUserId(matchId, user.getId());
+        boolean isAdmin = user.getRole() == UserRole.ADMIN;
+        boolean isCaptain = participantOpt.isPresent() && Boolean.TRUE.equals(participantOpt.get().getIsHost());
+
+        if (!isAdmin && !isCaptain) {
+            throw new UnauthorizedException("Chỉ Đội trưởng hoặc Quản trị viên mới có quyền thực hiện thao tác này");
+        }
+
+        if (isCaptain) {
+            Team team = participantOpt.get().getTeam();
+            if (team == Team.A) {
+                match.setCaptainAConfirmedNoTrade(!match.isCaptainAConfirmedNoTrade());
+            } else if (team == Team.B) {
+                match.setCaptainBConfirmedNoTrade(!match.isCaptainBConfirmedNoTrade());
+            }
+        }
+
+        if (isAdmin && !isCaptain) {
+            match.setCaptainAConfirmedNoTrade(true);
+            match.setCaptainBConfirmedNoTrade(true);
+        }
+
+        if (match.isCaptainAConfirmedNoTrade() && match.isCaptainBConfirmedNoTrade()) {
+            match.setStatus(MatchStatus.IN_PROGRESS);
+            if (match.getStartAt() == null) {
+                match.setStartAt(LocalDateTime.now());
+            }
+        }
+
+        Match saved = matchRepository.save(match);
+        MatchDto dto = getMatchDetails(saved.getId());
+        notificationService.broadcastMatchStatus(matchId, dto);
+        return dto;
     }
 }

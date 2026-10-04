@@ -73,6 +73,26 @@ public class Match {
     @Column(name = "pick_turn_started_at")
     private LocalDateTime pickTurnStartedAt; // Thời điểm bắt đầu lượt pick hiện tại để đếm ngược 60s
 
+    @Column(name = "trade_window_started_at")
+    private LocalDateTime tradeWindowStartedAt; // Thời điểm bắt đầu trade window để sync timer
+
+    // Consensus fields: cả 2 đội trưởng phải đồng ý (2/2) mới chuyển bước
+    @Column(name = "captain_a_confirmed_proceed")
+    @Builder.Default
+    private boolean captainAConfirmedProceed = false;
+
+    @Column(name = "captain_b_confirmed_proceed")
+    @Builder.Default
+    private boolean captainBConfirmedProceed = false;
+
+    @Column(name = "captain_a_confirmed_no_trade")
+    @Builder.Default
+    private boolean captainAConfirmedNoTrade = false;
+
+    @Column(name = "captain_b_confirmed_no_trade")
+    @Builder.Default
+    private boolean captainBConfirmedNoTrade = false;
+
     @Column(name = "start_at")
     private LocalDateTime startAt;     // Thời điểm ADMIN bắt đầu trận (IN_PROGRESS)
 

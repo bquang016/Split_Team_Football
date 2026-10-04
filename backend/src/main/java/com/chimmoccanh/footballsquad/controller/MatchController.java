@@ -153,4 +153,30 @@ public class MatchController {
         List<MatchDto> matches = matchService.getDeletedMatches();
         return ResponseEntity.ok(ApiResponse.ok(matches));
     }
+
+    /**
+     * Đội trưởng xác nhận chuyển từ PLAYER_PICKING → TRADE_WINDOW.
+     * Cần cả 2 đội trưởng đồng ý (2/2) mới auto chuyển status.
+     */
+    @PostMapping("/{id}/confirm-proceed")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<MatchDto>> confirmProceedToTrade(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        MatchDto match = matchService.confirmProceedToTrade(id, userDetails.getUser());
+        return ResponseEntity.ok(ApiResponse.ok("Đã ghi nhận xác nhận chuyển bước", match));
+    }
+
+    /**
+     * Đội trưởng xác nhận "Không chỉnh sửa" ở bước TRADE_WINDOW.
+     * Cần cả 2 đội trưởng đồng ý (2/2) mới auto chuyển sang IN_PROGRESS.
+     */
+    @PostMapping("/{id}/confirm-no-trade")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<MatchDto>> confirmNoTrade(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        MatchDto match = matchService.confirmNoTrade(id, userDetails.getUser());
+        return ResponseEntity.ok(ApiResponse.ok("Đã ghi nhận xác nhận không chỉnh sửa", match));
+    }
 }

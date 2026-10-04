@@ -6,6 +6,7 @@ export interface TabItem {
   label: string;
   icon?: string;
   count?: number;
+  disabled?: boolean;
 }
 
 export interface TabsProps {
@@ -35,17 +36,24 @@ export const Tabs: React.FC<TabsProps> = ({
           <button
             key={tab.id}
             type="button"
-            onClick={() => onChange(tab.id)}
+            disabled={tab.disabled}
+            onClick={() => !tab.disabled && onChange(tab.id)}
             className={clsx(
               'tab-neon-btn flex items-center gap-2 whitespace-nowrap',
-              isActive && 'active'
+              isActive && 'active',
+              tab.disabled && 'opacity-40 cursor-not-allowed hover:text-slate-500'
             )}
+            title={tab.disabled ? 'Bước này đang bị khóa' : undefined}
           >
-            {tab.icon && (
+            {tab.disabled ? (
+              <span className="material-symbols-outlined text-[15px] text-slate-500">
+                lock
+              </span>
+            ) : tab.icon ? (
               <span className="material-symbols-outlined text-[15px]">
                 {tab.icon}
               </span>
-            )}
+            ) : null}
             <span>{tab.label}</span>
             {tab.count !== undefined && (
               <span

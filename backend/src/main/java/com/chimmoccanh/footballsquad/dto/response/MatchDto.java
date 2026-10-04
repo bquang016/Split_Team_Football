@@ -33,6 +33,11 @@ public class MatchDto {
     private String jerseyWinnerTeam;    // "SPAIN" hoặc "FRANCE"
     private String firstPickTeam;       // "A" hoặc "B"
     private LocalDateTime pickTurnStartedAt;
+    private LocalDateTime tradeWindowStartedAt;
+    private boolean captainAConfirmedProceed;
+    private boolean captainBConfirmedProceed;
+    private boolean captainAConfirmedNoTrade;
+    private boolean captainBConfirmedNoTrade;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
     private LocalDateTime createdAt;
@@ -63,6 +68,11 @@ public class MatchDto {
                 .jerseyWinnerTeam(match.getJerseyWinnerTeam())
                 .firstPickTeam(match.getFirstPickTeam())
                 .pickTurnStartedAt(match.getPickTurnStartedAt())
+                .tradeWindowStartedAt(match.getTradeWindowStartedAt())
+                .captainAConfirmedProceed(match.isCaptainAConfirmedProceed())
+                .captainBConfirmedProceed(match.isCaptainBConfirmedProceed())
+                .captainAConfirmedNoTrade(match.isCaptainAConfirmedNoTrade())
+                .captainBConfirmedNoTrade(match.isCaptainBConfirmedNoTrade())
                 .startAt(match.getStartAt())
                 .endAt(match.getEndAt())
                 .isDeleted(match.isDeleted())

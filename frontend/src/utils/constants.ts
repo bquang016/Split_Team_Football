@@ -1,4 +1,4 @@
-import { MatchStatus } from '../types';
+import { MatchStatus, Position } from '../types';
 
 export const APP_NAME = 'ChimMocCanh FootballSquad';
 
@@ -95,4 +95,67 @@ export const FORMATION_PRESETS_7V7 = [
       { position: 'ST', x: 50, y: 18 },
     ],
   },
+  {
+    name: '1-4-1 (Tấn công áp đảo)',
+    desc: '1 Trung vệ dập · 4 Tiền vệ giăng ngang · 1 Tiền đạo',
+    positions: [
+      { position: 'GK', x: 50, y: 88 },
+      { position: 'CB', x: 50, y: 70 },
+      { position: 'LM', x: 18, y: 46 },
+      { position: 'CM', x: 38, y: 46 },
+      { position: 'CM', x: 62, y: 46 },
+      { position: 'RM', x: 82, y: 46 },
+      { position: 'ST', x: 50, y: 20 },
+    ],
+  },
+  {
+    name: '3-1-2 (2 Tiền đạo săn bàn)',
+    desc: '3 Hậu vệ · 1 Tiền vệ trụ · 2 Tiền đạo song sát',
+    positions: [
+      { position: 'GK', x: 50, y: 88 },
+      { position: 'LB', x: 22, y: 72 },
+      { position: 'CB', x: 50, y: 72 },
+      { position: 'RB', x: 78, y: 72 },
+      { position: 'CM', x: 50, y: 48 },
+      { position: 'ST', x: 35, y: 22 },
+      { position: 'ST', x: 65, y: 22 },
+    ],
+  },
+  {
+    name: '2-2-2 (Cơ động công thủ)',
+    desc: '2 Hậu vệ · 2 Tiền vệ con thoi · 2 Tiền đạo cánh',
+    positions: [
+      { position: 'GK', x: 50, y: 88 },
+      { position: 'CB', x: 32, y: 72 },
+      { position: 'CB', x: 68, y: 72 },
+      { position: 'LM', x: 28, y: 48 },
+      { position: 'RM', x: 72, y: 48 },
+      { position: 'LW', x: 32, y: 22 },
+      { position: 'RW', x: 68, y: 22 },
+    ],
+  },
 ];
+
+/**
+ * Automatically determine position role (GK, CB, LB, RB, CDM, CM, CAM, LM, RM, ST, LW, RW)
+ * based on x (0-100) and y (0-100) pitch coordinates.
+ * y goes from 0 (attacking goal) to 100 (defending goal / GK).
+ */
+export function detectPositionFromCoordinates(x: number, y: number): Position {
+  if (y >= 80) return 'GK';
+  if (y >= 60) {
+    if (x < 35) return 'LB';
+    if (x > 65) return 'RB';
+    return 'CB';
+  }
+  if (y >= 35) {
+    if (y >= 50 && x >= 36 && x <= 64) return 'CDM';
+    if (x < 32) return 'LM';
+    if (x > 68) return 'RM';
+    if (y < 46) return 'CAM';
+    return 'CM';
+  }
+  if (x < 32) return 'LW';
+  if (x > 68) return 'RW';
+  return 'ST';
+}

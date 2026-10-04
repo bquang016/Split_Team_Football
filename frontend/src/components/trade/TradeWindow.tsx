@@ -1,13 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { MatchParticipant, TradeRequest } from '../../types';
+import React, { useEffect, useState, useRef } from 'react';
+import { Match, MatchParticipant, TradeRequest } from '../../types';
 import { Card, Button, Badge, Avatar, Select } from '../../ui';
 import { tradeService } from '../../services/tradeService';
+import { matchService } from '../../services/matchService';
 import { useAuthStore } from '../../store/authStore';
+import { useWebSocketStore } from '../../store/websocketStore';
 import { TEAM_A_NAME, TEAM_B_NAME, TEAM_A_COLOR, TEAM_B_COLOR } from '../../utils/constants';
 import toast from 'react-hot-toast';
 
 interface TradeWindowProps {
   matchId: string;
+  match?: Match | null;
   participants: MatchParticipant[];
   onTradeCompleted: () => void;
   onProceedToLineup: () => void;
@@ -15,6 +18,7 @@ interface TradeWindowProps {
 
 export const TradeWindow: React.FC<TradeWindowProps> = ({
   matchId,
+  match,
   participants,
   onTradeCompleted,
   onProceedToLineup,
@@ -24,12 +28,16 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
   const [selectedTargetPlayerId, setSelectedTargetPlayerId] = useState<string>('');
   const [loadingTrades, setLoadingTrades] = useState(false);
   const [submittingTrade, setSubmittingTrade] = useState(false);
+  const [submittingConfirm, setSubmittingConfirm] = useState(false);
   const [timeLeftSec, setTimeLeftSec] = useState(600); // 10 minutes
-  const [captainAConfirmedNoTrade, setCaptainAConfirmedNoTrade] = useState(false);
-  const [captainBConfirmedNoTrade, setCaptainBConfirmedNoTrade] = useState(false);
+
+  const onProceedToLineupRef = useRef(onProceedToLineup);
+  onProceedToLineupRef.current = onProceedToLineup;
+  const hasFiredTimeoutRef = useRef(false);
 
   const { user, isAdmin } = useAuthStore();
   const adminActive = isAdmin();
+  const subscribe = useWebSocketStore((state) => state.subscribe);
 
   const teamAPlayers = participants.filter((p) => p.team === 'A');
   const teamBPlayers = participants.filter((p) => p.team === 'B');
@@ -77,28 +85,66 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
     fetchTrades();
   }, [matchId]);
 
-  // Countdown timer 10 minutes
+  // Subscribe to real-time trade events
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeLeftSec((prev) => {
-        if (prev <= 1) {
-          toast.success('Hết thời gian chuyển nhượng 10 phút! Tự động chuyển sang Sơ đồ thi đấu.');
-          onProceedToLineup();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [onProceedToLineup]);
+    if (!matchId) return;
 
-  // Auto proceed when both captains confirmed no trade
+    const unsubTrade = subscribe(`/topic/match/${matchId}/trade`, () => {
+      fetchTrades();
+      onTradeCompleted();
+    });
+
+    return () => {
+      unsubTrade();
+    };
+  }, [matchId, subscribe, onTradeCompleted]);
+
+  // Synchronized countdown timer based on tradeWindowStartedAt
   useEffect(() => {
-    if (captainAConfirmedNoTrade && captainBConfirmedNoTrade) {
-      toast.success('Cả hai đội trưởng đã xác nhận không chỉnh sửa! Chuyển sang Sơ đồ thi đấu.');
-      onProceedToLineup();
+    const calculateTimeLeft = () => {
+      if (match?.tradeWindowStartedAt) {
+        const start = new Date(match.tradeWindowStartedAt).getTime();
+        const elapsed = Math.floor((Date.now() - start) / 1000);
+        return Math.max(0, 600 - elapsed);
+      }
+      return 600;
+    };
+
+    const initial = calculateTimeLeft();
+    setTimeLeftSec(initial);
+
+    // If already expired on mount, do not repeat toast; trigger transition once
+    if (initial <= 0) {
+      if (!hasFiredTimeoutRef.current) {
+        hasFiredTimeoutRef.current = true;
+        onProceedToLineupRef.current();
+      }
+      return;
     }
-  }, [captainAConfirmedNoTrade, captainBConfirmedNoTrade, onProceedToLineup]);
+
+    const interval = setInterval(() => {
+      const remaining = calculateTimeLeft();
+      setTimeLeftSec(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(interval);
+        if (!hasFiredTimeoutRef.current) {
+          hasFiredTimeoutRef.current = true;
+          toast.success('Hết thời gian chuyển nhượng 10 phút! Tự động chuyển sang Sơ đồ thi đấu.', {
+            id: 'trade-timeout',
+          });
+          onProceedToLineupRef.current();
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [match?.tradeWindowStartedAt]);
+
+  const captainAConfirmedNoTrade = Boolean(match?.captainAConfirmedNoTrade);
+  const captainBConfirmedNoTrade = Boolean(match?.captainBConfirmedNoTrade);
+  const myConfirmed = isCaptainA ? captainAConfirmedNoTrade : isCaptainB ? captainBConfirmedNoTrade : false;
+  const consensusCount = (captainAConfirmedNoTrade ? 1 : 0) + (captainBConfirmedNoTrade ? 1 : 0);
 
   const formatTimer = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -153,18 +199,24 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
     }
   };
 
-  const toggleNoTradeConfirmation = () => {
-    if (adminActive) {
-      setCaptainAConfirmedNoTrade(true);
-      setCaptainBConfirmedNoTrade(true);
-    } else if (isCaptainA) {
-      const next = !captainAConfirmedNoTrade;
-      setCaptainAConfirmedNoTrade(next);
-      toast.success(next ? 'Đội trưởng A đã xác nhận: Không chỉnh sửa' : 'Đã hủy xác nhận');
-    } else if (isCaptainB) {
-      const next = !captainBConfirmedNoTrade;
-      setCaptainBConfirmedNoTrade(next);
-      toast.success(next ? 'Đội trưởng B đã xác nhận: Không chỉnh sửa' : 'Đã hủy xác nhận');
+  const toggleNoTradeConfirmation = async () => {
+    setSubmittingConfirm(true);
+    try {
+      const res = await matchService.confirmNoTrade(matchId);
+      if (res.success) {
+        toast.success(
+          adminActive
+            ? 'Quản trị viên đã xác nhận: Không chỉnh sửa!'
+            : myConfirmed
+            ? 'Đã hủy xác nhận không chỉnh sửa'
+            : 'Đã xác nhận không chỉnh sửa! Đang chờ đội trưởng còn lại...'
+        );
+        onTradeCompleted();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi xác nhận');
+    } finally {
+      setSubmittingConfirm(false);
     }
   };
 
@@ -207,12 +259,13 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
                 }
                 size="md"
                 leftIcon="check_circle"
+                isLoading={submittingConfirm}
                 onClick={toggleNoTradeConfirmation}
               >
                 {adminActive
                   ? 'Chốt: Không chỉnh sửa'
                   : (isCaptainA && captainAConfirmedNoTrade) || (isCaptainB && captainBConfirmedNoTrade)
-                  ? 'Đã xác nhận Không chỉnh sửa'
+                  ? 'Đã xác nhận Không chỉnh sửa (Hủy)'
                   : 'Nút: Không chỉnh sửa'}
               </Button>
             )}
@@ -231,18 +284,23 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
         </div>
 
         {/* Captain confirmation indicators */}
-        <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-4 text-xs font-space">
-          <div className="flex items-center gap-1.5">
-            <span className={`w-3 h-3 rounded-full ${captainAConfirmedNoTrade ? 'bg-emerald-500 shadow-sm' : 'bg-slate-300 dark:bg-slate-700'}`} />
-            <span className="text-slate-600 dark:text-slate-400">
-              Đội trưởng {TEAM_A_NAME}: <strong>{captainAConfirmedNoTrade ? 'Đã xác nhận Không chỉnh sửa' : 'Chưa bấm'}</strong>
-            </span>
+        <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4 text-xs font-space">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className={`w-3 h-3 rounded-full ${captainAConfirmedNoTrade ? 'bg-emerald-500 shadow-sm' : 'bg-slate-300 dark:bg-slate-700'}`} />
+              <span className="text-slate-600 dark:text-slate-400">
+                Đội trưởng {TEAM_A_NAME}: <strong>{captainAConfirmedNoTrade ? 'Đã xác nhận Không chỉnh sửa' : 'Chưa bấm'}</strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className={`w-3 h-3 rounded-full ${captainBConfirmedNoTrade ? 'bg-emerald-500 shadow-sm' : 'bg-slate-300 dark:bg-slate-700'}`} />
+              <span className="text-slate-600 dark:text-slate-400">
+                Đội trưởng {TEAM_B_NAME}: <strong>{captainBConfirmedNoTrade ? 'Đã xác nhận Không chỉnh sửa' : 'Chưa bấm'}</strong>
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className={`w-3 h-3 rounded-full ${captainBConfirmedNoTrade ? 'bg-emerald-500 shadow-sm' : 'bg-slate-300 dark:bg-slate-700'}`} />
-            <span className="text-slate-600 dark:text-slate-400">
-              Đội trưởng {TEAM_B_NAME}: <strong>{captainBConfirmedNoTrade ? 'Đã xác nhận Không chỉnh sửa' : 'Chưa bấm'}</strong>
-            </span>
+          <div className="text-xs font-bold text-amber-500 font-space">
+            Đồng thuận: {consensusCount}/2
           </div>
         </div>
       </Card>

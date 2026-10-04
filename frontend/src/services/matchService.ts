@@ -101,4 +101,14 @@ export const matchService = {
     const res = await api.delete<ApiResponse<void>>(`/api/matches/${matchId}/goals/${goalId}`);
     return res.data;
   },
+
+  async confirmProceedToTrade(id: string): Promise<ApiResponse<Match>> {
+    const res = await api.post<ApiResponse<Match>>(`/api/matches/${id}/confirm-proceed`);
+    return res.data;
+  },
+
+  async confirmNoTrade(id: string): Promise<ApiResponse<Match>> {
+    const res = await api.post<ApiResponse<Match>>(`/api/matches/${id}/confirm-no-trade`);
+    return res.data;
+  },
 };

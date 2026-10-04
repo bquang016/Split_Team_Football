@@ -1,6 +1,7 @@
 package com.chimmoccanh.footballsquad.service;
 
 import com.chimmoccanh.footballsquad.dto.request.CreateTradeRequestDto;
+import com.chimmoccanh.footballsquad.dto.response.MatchDto;
 import com.chimmoccanh.footballsquad.dto.response.TradeRequestDto;
 import com.chimmoccanh.footballsquad.exception.BadRequestException;
 import com.chimmoccanh.footballsquad.exception.ResourceNotFoundException;
@@ -66,6 +67,14 @@ public class TradeService {
         TradeRequest saved = tradeRequestRepository.save(trade);
         TradeRequestDto dto = TradeRequestDto.fromEntity(saved);
 
+        // Reset no-trade consensus if active
+        if (match.isCaptainAConfirmedNoTrade() || match.isCaptainBConfirmedNoTrade()) {
+            match.setCaptainAConfirmedNoTrade(false);
+            match.setCaptainBConfirmedNoTrade(false);
+            matchRepository.save(match);
+            notificationService.broadcastMatchStatus(matchId, MatchDto.fromEntity(match));
+        }
+
         notificationService.broadcastTradeEvent(matchId, dto);
         return dto;
     }
@@ -105,6 +114,15 @@ public class TradeService {
 
         TradeRequest saved = tradeRequestRepository.save(trade);
         TradeRequestDto dto = TradeRequestDto.fromEntity(saved);
+
+        // Reset no-trade consensus if active
+        Match match = trade.getMatch();
+        if (match != null && (match.isCaptainAConfirmedNoTrade() || match.isCaptainBConfirmedNoTrade())) {
+            match.setCaptainAConfirmedNoTrade(false);
+            match.setCaptainBConfirmedNoTrade(false);
+            matchRepository.save(match);
+            notificationService.broadcastMatchStatus(matchId, MatchDto.fromEntity(match));
+        }
 
         notificationService.broadcastTradeEvent(matchId, dto);
         return dto;

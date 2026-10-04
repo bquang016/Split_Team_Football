@@ -28,6 +28,7 @@ export const MatchDetailPage: React.FC = () => {
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'spin' | 'jersey' | 'pick' | 'trade' | 'lineup' | 'stats'>('overview');
+  const [hasInitializedTab, setHasInitializedTab] = useState(false);
 
   // Spin wheel state
   const [hostAId, setHostAId] = useState<string>('');
@@ -129,7 +130,26 @@ export const MatchDetailPage: React.FC = () => {
     const unsubs = [
       subscribe(`/topic/match/${id}/status`, (updatedMatch: Match) => {
         setMatch((prev) => (prev ? { ...prev, ...updatedMatch } : updatedMatch));
-        toast.success('Trạng thái trận đấu vừa được cập nhật');
+        toast.success(`Trạng thái trận đấu: ${updatedMatch.status}`);
+        if (updatedMatch?.status) {
+          switch (updatedMatch.status) {
+            case 'JERSEY_SELECTION':
+              setActiveTab('jersey');
+              break;
+            case 'PLAYER_PICKING':
+              setActiveTab('pick');
+              break;
+            case 'TRADE_WINDOW':
+              setActiveTab('trade');
+              break;
+            case 'IN_PROGRESS':
+              setActiveTab('lineup');
+              break;
+            case 'COMPLETED':
+              setActiveTab('stats');
+              break;
+          }
+        }
       }),
       subscribe(`/topic/match/${id}/spin`, (session: any) => {
         setIsSpinning(true);
@@ -157,6 +177,34 @@ export const MatchDetailPage: React.FC = () => {
       unsubs.forEach((unsub) => unsub && unsub());
     };
   }, [id, subscribe]);
+
+  // Auto-navigate to current match step on initial load
+  useEffect(() => {
+    if (!match || hasInitializedTab) return;
+    switch (match.status) {
+      case 'PENDING':
+        setActiveTab('overview');
+        break;
+      case 'JERSEY_SELECTION':
+        setActiveTab('jersey');
+        break;
+      case 'PLAYER_PICKING':
+        setActiveTab('pick');
+        break;
+      case 'TRADE_WINDOW':
+        setActiveTab('trade');
+        break;
+      case 'IN_PROGRESS':
+        setActiveTab('lineup');
+        break;
+      case 'COMPLETED':
+        setActiveTab('stats');
+        break;
+      default:
+        setActiveTab('overview');
+    }
+    setHasInitializedTab(true);
+  }, [match, hasInitializedTab]);
 
   if (loading) {
     return (
@@ -575,21 +623,77 @@ export const MatchDetailPage: React.FC = () => {
             )}
           </div>
 
-          {/* Navigation Tabs */}
+          {/* Navigation Tabs with Step Locking */}
           <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
-            <Tabs
-              tabs={[
-                { id: 'overview', label: 'Step 1: Điểm danh', icon: 'groups', count: participants.length },
-                { id: 'spin', label: 'Step 2: Quay Captain', icon: 'casino' },
-                { id: 'jersey', label: 'Step 2: Chọn áo đấu', icon: 'checkroom' },
-                { id: 'pick', label: 'Step 3: Chọn người (60s)', icon: 'how_to_reg' },
-                { id: 'trade', label: 'Step 4: Chỉnh sửa (Trade)', icon: 'swap_horiz' },
-                { id: 'lineup', label: 'Step 5: Sơ đồ thi đấu', icon: 'sports' },
-                { id: 'stats', label: 'Step 6: Thống kê sau trận', icon: 'sports_score' },
-              ]}
-              activeTab={activeTab}
-              onChange={(t) => setActiveTab(t as any)}
-            />
+            {(() => {
+              const getStepProgress = (status?: string) => {
+                switch (status) {
+                  case 'PENDING':
+                    return 1;
+                  case 'JERSEY_SELECTION':
+                    return 2;
+                  case 'PLAYER_PICKING':
+                    return 3;
+                  case 'TRADE_WINDOW':
+                    return 4;
+                  case 'IN_PROGRESS':
+                    return 5;
+                  case 'COMPLETED':
+                    return 6;
+                  default:
+                    return 1;
+                }
+              };
+
+              const currentStep = getStepProgress(match.status);
+
+              const isTradeWindowExpired = match.tradeWindowStartedAt
+                ? Date.now() - new Date(match.tradeWindowStartedAt).getTime() >= 600000
+                : false;
+
+              const isTabLocked = (tabId: string) => {
+                if (adminActive) return false;
+                switch (tabId) {
+                  case 'overview':
+                  case 'spin':
+                    return false;
+                  case 'jersey':
+                    return currentStep < 2;
+                  case 'pick':
+                    return currentStep < 3;
+                  case 'trade':
+                    return currentStep < 4;
+                  case 'lineup':
+                    return currentStep < 5 && !isTradeWindowExpired;
+                  case 'stats':
+                    return currentStep < 5 && !isStatsEligible;
+                  default:
+                    return false;
+                }
+              };
+
+              return (
+                <Tabs
+                  tabs={[
+                    { id: 'overview', label: 'Step 1: Điểm danh', icon: 'groups', count: participants.length },
+                    { id: 'spin', label: 'Step 2: Quay Captain', icon: 'casino', disabled: isTabLocked('spin') },
+                    { id: 'jersey', label: 'Step 2: Chọn áo đấu', icon: 'checkroom', disabled: isTabLocked('jersey') },
+                    { id: 'pick', label: 'Step 3: Chọn người (60s)', icon: 'how_to_reg', disabled: isTabLocked('pick') },
+                    { id: 'trade', label: 'Step 4: Chỉnh sửa (Trade)', icon: 'swap_horiz', disabled: isTabLocked('trade') },
+                    { id: 'lineup', label: 'Step 5: Sơ đồ thi đấu', icon: 'sports', disabled: isTabLocked('lineup') },
+                    { id: 'stats', label: 'Step 6: Thống kê sau trận', icon: 'sports_score', disabled: isTabLocked('stats') },
+                  ]}
+                  activeTab={activeTab}
+                  onChange={(t) => {
+                    if (!isTabLocked(t as string)) {
+                      setActiveTab(t as any);
+                    } else {
+                      toast.error('Bước này chưa được mở khóa trong tiến trình trận đấu');
+                    }
+                  }}
+                />
+              );
+            })()}
           </div>
         </div>
       </Card>
@@ -787,8 +891,10 @@ export const MatchDetailPage: React.FC = () => {
           onReset={handleResetPick}
           onMatchUpdate={fetchMatch}
           onProceedToTrade={() => {
-            handleUpdateStatus('TRADE_WINDOW');
-            setActiveTab('trade');
+            if (adminActive) {
+              handleUpdateStatus('TRADE_WINDOW');
+              setActiveTab('trade');
+            }
           }}
         />
       )}
@@ -797,10 +903,19 @@ export const MatchDetailPage: React.FC = () => {
       {activeTab === 'trade' && (
         <TradeWindow
           matchId={match.id}
+          match={match}
           participants={participants}
           onTradeCompleted={fetchMatch}
-          onProceedToLineup={() => {
-            handleUpdateStatus('IN_PROGRESS');
+          onProceedToLineup={async () => {
+            if (adminActive) {
+              await handleUpdateStatus('IN_PROGRESS');
+            } else {
+              try {
+                await matchService.confirmNoTrade(match.id);
+              } catch {
+                // Ignore if already progressed or unauthorized
+              }
+            }
             setActiveTab('lineup');
           }}
         />
