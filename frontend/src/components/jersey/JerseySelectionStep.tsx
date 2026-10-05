@@ -3,6 +3,8 @@ import { Match, JerseyTeam } from '../../types';
 import { Card, Button, Badge } from '../../ui';
 import { matchService } from '../../services/matchService';
 import toast from 'react-hot-toast';
+import spainJerseyImg from '../../assets/ao_dau/taybannha.webp';
+import franceJerseyImg from '../../assets/ao_dau/phap.webp';
 
 interface JerseySelectionStepProps {
   match: Match;
@@ -68,8 +70,12 @@ export const JerseySelectionStep: React.FC<JerseySelectionStepProps> = ({
                 : 'border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 hover:border-slate-300'
             } ${!canSelect ? 'cursor-default opacity-80' : ''}`}
           >
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-500 shadow-md flex items-center justify-center text-white mb-4 relative">
-              <span className="material-symbols-outlined text-4xl">checkroom</span>
+            <div className="w-24 h-24 rounded-2xl bg-gradient-to-tr from-amber-500/10 to-rose-500/10 border border-rose-500/20 shadow-md flex items-center justify-center p-2 mb-4 relative">
+              <img
+                src={spainJerseyImg}
+                alt="Áo đấu Tây Ban Nha"
+                className="max-h-full max-w-full object-contain filter drop-shadow-[0_8px_16px_rgba(244,63,94,0.35)]"
+              />
             </div>
             <h3 className="font-space font-bold text-lg text-slate-900 dark:text-white">
               Tây Ban Nha
@@ -88,8 +94,12 @@ export const JerseySelectionStep: React.FC<JerseySelectionStepProps> = ({
                 : 'border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 hover:border-slate-300'
             } ${!canSelect ? 'cursor-default opacity-80' : ''}`}
           >
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-700 to-indigo-500 shadow-md flex items-center justify-center text-white mb-4 relative">
-              <span className="material-symbols-outlined text-4xl">checkroom</span>
+            <div className="w-24 h-24 rounded-2xl bg-gradient-to-tr from-blue-700/10 to-indigo-500/10 border border-blue-500/20 shadow-md flex items-center justify-center p-2 mb-4 relative">
+              <img
+                src={franceJerseyImg}
+                alt="Áo đấu Pháp"
+                className="max-h-full max-w-full object-contain filter drop-shadow-[0_8px_16px_rgba(59,130,246,0.35)]"
+              />
             </div>
             <h3 className="font-space font-bold text-lg text-slate-900 dark:text-white">
               Pháp

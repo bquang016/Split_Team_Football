@@ -92,27 +92,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return user?.role === 'ADMIN';
   },
 
-  toggleAdminMode: () => {
-    const user = get().user;
-    if (!user) {
-      // Create guest admin if not logged in
-      const mockAdmin: User = {
-        id: 'guest-admin',
-        username: 'admin',
-        fullName: 'Hùng Nguyễn (Admin)',
-        jerseyNumber: 10,
-        role: 'ADMIN',
-        status: 'ACTIVE',
-        createdAt: new Date().toISOString(),
-      };
-      set({ user: mockAdmin, isAuthenticated: true });
-      localStorage.setItem('user', JSON.stringify(mockAdmin));
-      return;
+  toggleAdminMode: async () => {
+    try {
+      const res = await authService.getQuickUsers();
+      if (res.success && res.data && res.data.length > 0) {
+        const currentUser = get().user;
+        if (currentUser?.role === 'ADMIN') {
+          // Switch to first player
+          const player = res.data.find((u) => u.role !== 'ADMIN') || res.data[0];
+          await get().quickLogin(player.id);
+        } else {
+          // Switch to admin
+          const admin = res.data.find((u) => u.role === 'ADMIN') || res.data[0];
+          await get().quickLogin(admin.id);
+        }
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Không thể chuyển đổi chế độ quản trị viên', err);
     }
-    const newRole: UserRole = user.role === 'ADMIN' ? 'PLAYER' : 'ADMIN';
-    const updatedUser = { ...user, role: newRole };
-    set({ user: updatedUser });
-    localStorage.setItem('user', JSON.stringify(updatedUser));
   },
 }));
 

@@ -2,6 +2,8 @@ import React from 'react';
 import { Match, MatchLineup, MatchParticipant, Position, Team } from '../../types';
 import { FORMATION_PRESETS_7V7, GK_COLOR, TEAM_A_COLOR, TEAM_B_COLOR } from '../../utils/constants';
 import { formatDateVi, formatTimeVi } from '../../utils/formatters';
+import spainJerseyImg from '../../assets/ao_dau/taybannha.webp';
+import franceJerseyImg from '../../assets/ao_dau/phap.webp';
 
 export type PosterTheme = 'emerald' | 'midnight' | 'carbon' | 'daylight' | 'minimal-light';
 export type PosterRatio = '4:5' | '16:9' | '1:1';
@@ -255,9 +257,14 @@ export const MatchdayPoster: React.FC<MatchdayPosterProps> = ({
                     backgroundColor: teamColor,
                     color: '#FFFFFF',
                   }}
-                  className="text-xs px-2.5 py-1 rounded-lg font-bold border border-white/20 uppercase tracking-widest"
+                  className="text-xs px-2.5 py-1 rounded-lg font-bold border border-white/20 uppercase tracking-widest inline-flex items-center gap-1.5"
                 >
-                  {isSpain ? 'ÁO TÂY BAN NHA' : 'ÁO PHÁP'}
+                  <img
+                    src={isSpain ? spainJerseyImg : franceJerseyImg}
+                    alt={isSpain ? 'Áo Tây Ban Nha' : 'Áo Pháp'}
+                    className="w-4 h-4 object-contain filter drop-shadow"
+                  />
+                  <span>{isSpain ? 'ÁO TÂY BAN NHA' : 'ÁO PHÁP'}</span>
                 </span>
               </h1>
             </div>

@@ -37,4 +37,12 @@ export const tradeService = {
     );
     return res.data;
   },
+
+  async donatePlayer(matchId: string, playerId: string): Promise<ApiResponse<TradeRequest>> {
+    const res = await api.post<ApiResponse<TradeRequest>>(
+      `/api/matches/${matchId}/trades/donate`,
+      { playerId }
+    );
+    return res.data;
+  },
 };

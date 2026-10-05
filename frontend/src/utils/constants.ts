@@ -35,6 +35,12 @@ export const MATCH_STATUS_MAP: Record<MatchStatus, { label: string; color: strin
     bg: '#F5F3FF',
     border: '#DDD6FE',
   },
+  TEAMS_SPLIT: {
+    label: 'Đã chia đội',
+    color: '#059669',
+    bg: '#ECFDF5',
+    border: '#A7F3D0',
+  },
   IN_PROGRESS: {
     label: 'Trận đang đá',
     color: '#DC2626',

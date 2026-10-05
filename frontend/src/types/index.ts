@@ -1,13 +1,14 @@
-export type UserRole = 'PLAYER' | 'ADMIN';
+export type UserRole = 'PLAYER' | 'ADMIN' | 'GUEST';
 export type UserStatus = 'PENDING' | 'ACTIVE' | 'BANNED';
 
-// MatchStatus theo luồng 6 bước mới
+// MatchStatus theo luồng bước trận đấu
 export type MatchStatus =
   | 'PENDING'           // Bước 1: Điểm danh đang mở
   | 'JERSEY_SELECTION'  // Bước 2: Chọn áo đấu
   | 'PLAYER_PICKING'    // Bước 3: Pick cầu thủ (quay spin trước mỗi lượt)
   | 'TRADE_WINDOW'      // Bước 4: Chỉnh sửa / đổi người
-  | 'IN_PROGRESS'       // Đang thi đấu
+  | 'TEAMS_SPLIT'       // Đã chia đội (hoàn thành các bước setup)
+  | 'IN_PROGRESS'       // Trận đang đá (chỉ khi đến ngày giờ định sẵn)
   | 'COMPLETED'         // Kết thúc — mở nhập thống kê
   | 'CANCELLED';
 
@@ -87,11 +88,23 @@ export interface Match {
   createdBy?: User;
   scoreTeamA: number;
   scoreTeamB: number;
-  // Bước 2: Áo đấu đã chọn
+  // Bước 2: Áo đấu đã chọn & consensus
   jerseyWinnerTeam?: JerseyTeam | null; // "SPAIN" hoặc "FRANCE"
+  jerseyCaptainAReady?: boolean;
+  jerseyCaptainBReady?: boolean;
+  jerseyTurnStartedAt?: string | null;
+  jerseyCaptainAConfirmed?: boolean;
+  jerseyCaptainBConfirmed?: boolean;
+
   // Bước 3: Đội thắng quay lượt chọn đầu & thời điểm bắt đầu lượt
   firstPickTeam?: 'A' | 'B' | null;
   pickTurnStartedAt?: string | null;
+  pickRoundCaptainAReady?: boolean;
+  pickRoundCaptainBReady?: boolean;
+  currentPickRound?: number;
+  roundFirstPickerDone?: boolean;
+  roundSecondPickerDone?: boolean;
+
   tradeWindowStartedAt?: string | null;
   captainAConfirmedProceed?: boolean;
   captainBConfirmedProceed?: boolean;
@@ -204,6 +217,7 @@ export const MATCH_STATUS_LABEL: Record<MatchStatus, string> = {
   JERSEY_SELECTION: 'Chọn áo',
   PLAYER_PICKING: 'Pick cầu thủ',
   TRADE_WINDOW: 'Chỉnh sửa đội hình',
+  TEAMS_SPLIT: 'Đã chia đội',
   IN_PROGRESS: 'Đang diễn ra',
   COMPLETED: 'Đã kết thúc',
   CANCELLED: 'Đã hủy',

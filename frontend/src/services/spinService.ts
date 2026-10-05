@@ -15,6 +15,11 @@ export const spinService = {
     return res.data;
   },
 
+  async spinJersey(matchId: string): Promise<ApiResponse<SpinSession>> {
+    const res = await api.post<ApiResponse<SpinSession>>(`/api/matches/${matchId}/spin/jersey`);
+    return res.data;
+  },
+
   async spinRoundPick(matchId: string): Promise<ApiResponse<SpinSession>> {
     const res = await api.post<ApiResponse<SpinSession>>(`/api/matches/${matchId}/spin/round-pick`);
     return res.data;

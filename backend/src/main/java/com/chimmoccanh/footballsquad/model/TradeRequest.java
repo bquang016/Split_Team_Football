@@ -38,8 +38,8 @@ public class TradeRequest {
     private User playerOffered;     // Cầu thủ bên mình muốn đổi
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "player_wanted_id", nullable = false)
-    private User playerWanted;      // Cầu thủ bên kia muốn lấy
+    @JoinColumn(name = "player_wanted_id", nullable = true)
+    private User playerWanted;      // Cầu thủ bên kia muốn lấy (null nếu là tặng cầu thủ trực tiếp)
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

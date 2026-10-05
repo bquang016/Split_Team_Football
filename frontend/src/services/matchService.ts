@@ -74,13 +74,36 @@ export const matchService = {
     return res.data;
   },
 
+  async addGuestParticipant(
+    matchId: string,
+    data: { fullName: string; jerseyNumber?: number }
+  ): Promise<ApiResponse<MatchParticipant>> {
+    const res = await api.post<ApiResponse<MatchParticipant>>(`/api/matches/${matchId}/participants/guest`, data);
+    return res.data;
+  },
+
   async updateScore(matchId: string, scoreTeamA: number, scoreTeamB: number): Promise<ApiResponse<Match>> {
     const res = await api.patch<ApiResponse<Match>>(`/api/matches/${matchId}/score`, { scoreTeamA, scoreTeamB });
     return res.data;
   },
 
+  async assignCaptains(matchId: string, hostAId: string, hostBId: string): Promise<ApiResponse<Match>> {
+    const res = await api.post<ApiResponse<Match>>(`/api/matches/${matchId}/assign-captains`, { hostAId, hostBId });
+    return res.data;
+  },
+
+  async confirmJerseyReady(matchId: string): Promise<ApiResponse<Match>> {
+    const res = await api.post<ApiResponse<Match>>(`/api/matches/${matchId}/jersey/ready`);
+    return res.data;
+  },
+
   async selectJersey(matchId: string, jerseyTeam: string): Promise<ApiResponse<Match>> {
     const res = await api.post<ApiResponse<Match>>(`/api/matches/${matchId}/select-jersey`, { jerseyTeam });
+    return res.data;
+  },
+
+  async confirmJerseyProceed(matchId: string): Promise<ApiResponse<Match>> {
+    const res = await api.post<ApiResponse<Match>>(`/api/matches/${matchId}/jersey/confirm-proceed`);
     return res.data;
   },
 

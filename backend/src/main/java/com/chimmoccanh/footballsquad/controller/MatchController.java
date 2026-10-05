@@ -114,19 +114,54 @@ public class MatchController {
         return ResponseEntity.ok(ApiResponse.ok("Cập nhật tỉ số trận đấu thành công", match));
     }
 
+    @PostMapping("/{id}/assign-captains")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<MatchDto>> assignCaptains(
+            @PathVariable UUID id,
+            @RequestBody Map<String, UUID> body,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        UUID hostAId = body.get("hostAId");
+        UUID hostBId = body.get("hostBId");
+        MatchDto match = matchService.assignCaptains(id, hostAId, hostBId, userDetails.getUser());
+        return ResponseEntity.ok(ApiResponse.ok("Đã chỉ định đội trưởng thành công", match));
+    }
+
+    @PostMapping("/{id}/jersey/ready")
+    public ResponseEntity<ApiResponse<MatchDto>> confirmJerseyReady(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Vui lòng đăng nhập để thực hiện thao tác"));
+        }
+        MatchDto match = matchService.confirmJerseyReady(id, userDetails.getUser());
+        return ResponseEntity.ok(ApiResponse.ok("Đã xác nhận sẵn sàng", match));
+    }
+
     /**
      * Bước 2: Người thắng spin chọn áo đấu (SPAIN hoặc FRANCE).
-     * Sau khi chọn, trạng thái tự chuyển sang PLAYER_PICKING.
      */
     @PostMapping("/{id}/select-jersey")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<MatchDto>> selectJersey(
             @PathVariable UUID id,
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Vui lòng đăng nhập để thực hiện thao tác"));
+        }
         String jerseyTeam = body.get("jerseyTeam"); // "SPAIN" or "FRANCE"
         MatchDto match = matchService.selectJersey(id, jerseyTeam, userDetails.getUser());
         return ResponseEntity.ok(ApiResponse.ok("Đã chọn áo đấu " + jerseyTeam, match));
+    }
+
+    @PostMapping("/{id}/jersey/confirm-proceed")
+    public ResponseEntity<ApiResponse<MatchDto>> confirmJerseyProceed(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Vui lòng đăng nhập để thực hiện thao tác"));
+        }
+        MatchDto match = matchService.confirmJerseyProceed(id, userDetails.getUser());
+        return ResponseEntity.ok(ApiResponse.ok("Đã xác nhận hoàn tất chọn áo đấu", match));
     }
 
     @DeleteMapping("/{id}")
@@ -178,5 +213,17 @@ public class MatchController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         MatchDto match = matchService.confirmNoTrade(id, userDetails.getUser());
         return ResponseEntity.ok(ApiResponse.ok("Đã ghi nhận xác nhận không chỉnh sửa", match));
+    }
+
+    @PostMapping("/{id}/participants/guest")
+    public ResponseEntity<ApiResponse<MatchParticipantDto>> addGuestParticipant(
+            @PathVariable UUID id,
+            @jakarta.validation.Valid @RequestBody com.chimmoccanh.footballsquad.dto.request.AddGuestParticipantRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Vui lòng đăng nhập để thực hiện thao tác"));
+        }
+        MatchParticipantDto participant = matchService.addGuestParticipant(id, request, userDetails.getUser());
+        return ResponseEntity.ok(ApiResponse.ok("Đã thêm cầu thủ khách vào trận", participant));
     }
 }

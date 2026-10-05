@@ -48,7 +48,7 @@ public class LeaderboardService {
     @CacheEvict(value = "leaderboard", allEntries = true)
     public void updateUserStatsInLeaderboard(UUID userId) {
         User user = userRepository.findById(userId).orElse(null);
-        if (user == null) return;
+        if (user == null || user.getRole() == com.chimmoccanh.footballsquad.model.enums.UserRole.GUEST) return;
 
         int totalGoals = playerStatsRepository.sumGoalsByUserId(userId);
         int totalAssists = playerStatsRepository.sumAssistsByUserId(userId);

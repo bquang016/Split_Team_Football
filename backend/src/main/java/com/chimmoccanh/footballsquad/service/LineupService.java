@@ -54,8 +54,22 @@ public class LineupService {
             throw new UnauthorizedException("Chỉ Quản trị viên và Đội trưởng mới có quyền lưu sơ đồ đội hình");
         }
 
-        // Delete existing lineup for this match or upsert
-        lineupRepository.deleteByMatchId(matchId);
+        java.util.Set<com.chimmoccanh.footballsquad.model.enums.Team> teamsInRequest = request.getLineups().stream()
+                .map(LineupItemDto::getTeam)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        if (!isAdmin && isCaptain) {
+            com.chimmoccanh.footballsquad.model.enums.Team captainTeam = participantOpt.get().getTeam();
+            if (teamsInRequest.stream().anyMatch(t -> t != captainTeam)) {
+                throw new BadRequestException("Đội trưởng chỉ có quyền quản lý và lưu sơ đồ của đội mình");
+            }
+        }
+
+        // Delete existing lineup only for the teams being updated
+        for (com.chimmoccanh.footballsquad.model.enums.Team t : teamsInRequest) {
+            lineupRepository.deleteByMatchIdAndTeam(matchId, t);
+        }
 
         List<MatchLineup> lineupsToSave = new ArrayList<>();
         for (LineupItemDto item : request.getLineups()) {
@@ -75,8 +89,9 @@ public class LineupService {
             lineupsToSave.add(lineup);
         }
 
-        List<MatchLineup> savedLineups = lineupRepository.saveAll(lineupsToSave);
-        List<MatchLineupDto> dtos = savedLineups.stream().map(MatchLineupDto::fromEntity).collect(Collectors.toList());
+        lineupRepository.saveAll(lineupsToSave);
+        List<MatchLineup> allSaved = lineupRepository.findByMatchId(matchId);
+        List<MatchLineupDto> dtos = allSaved.stream().map(MatchLineupDto::fromEntity).collect(Collectors.toList());
 
         notificationService.broadcastLineupEvent(matchId, dtos);
         return dtos;

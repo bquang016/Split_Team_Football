@@ -98,13 +98,79 @@ public class SpinService {
     }
 
     @Transactional
+    public SpinSessionDto spinJerseyTurn(UUID matchId, User currentUser) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        if (match.getStatus() != MatchStatus.JERSEY_SELECTION) {
+            throw new BadRequestException("Chỉ quay chọn quyền chọn áo ở bước Chọn áo đấu");
+        }
+
+        List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrue(matchId);
+        if (hosts.size() < 2) {
+            throw new BadRequestException("Cần có 2 đội trưởng để quay chọn áo");
+        }
+
+        boolean isAdmin = currentUser != null && currentUser.getRole() == com.chimmoccanh.footballsquad.model.enums.UserRole.ADMIN;
+        if (!isAdmin && (!match.isJerseyCaptainAReady() || !match.isJerseyCaptainBReady())) {
+            throw new BadRequestException("Cần cả 2 đội trưởng xác nhận sẵn sàng trước khi quay chọn áo");
+        }
+
+        hosts.sort((a, b) -> {
+            if (a.getTeam() == Team.A) return -1;
+            if (b.getTeam() == Team.A) return 1;
+            return 0;
+        });
+
+        User hostA = hosts.get(0).getUser();
+        User hostB = hosts.get(1).getUser();
+
+        long seed = Math.abs(secureRandom.nextLong());
+        boolean winnerIsA = (seed % 2 == 0);
+        User winner = winnerIsA ? hostA : hostB;
+        int durationMs = 4500;
+
+        SpinSession session = SpinSession.builder()
+                .match(match)
+                .hostA(hostA)
+                .hostB(hostB)
+                .winner(winner)
+                .spinSeed(seed)
+                .durationMs(durationMs)
+                .build();
+
+        SpinSession savedSession = spinSessionRepository.save(session);
+
+        match.setJerseyCaptainAReady(false);
+        match.setJerseyCaptainBReady(false);
+        match.setJerseyTurnStartedAt(java.time.LocalDateTime.now().plusSeconds(5));
+        Match savedMatch = matchRepository.save(match);
+
+        SpinSessionDto dto = SpinSessionDto.fromEntity(savedSession);
+        notificationService.broadcastSpinEvent(matchId, dto);
+        notificationService.broadcastMatchStatus(matchId, MatchDto.fromEntity(savedMatch));
+        return dto;
+    }
+
+    @Transactional
     public SpinSessionDto spinRoundPick(UUID matchId, User currentUser) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
 
         // Validate match status
         if (match.getStatus() != MatchStatus.PLAYER_PICKING) {
-            throw new BadRequestException("Chỉ quay lượt chọn cầu thủ ở bước Pick cầu thủ (PLAYER_PICKING)");
+            throw new BadRequestException("Chỉ quay lượt chọn cầu thủ ở bước Chọn người (PLAYER_PICKING)");
+        }
+
+        if (match.getFirstPickTeam() != null) {
+            throw new BadRequestException("Lượt chọn hiện tại đang diễn ra, vui lòng hoàn tất lượt chọn");
+        }
+
+        long unpickedCount = participantRepository.findByMatchId(matchId).stream()
+                .filter(p -> !Boolean.TRUE.equals(p.getIsHost()) && (p.getTeam() == null || p.getTeam() == Team.NONE))
+                .count();
+        if (unpickedCount <= 1) {
+            throw new BadRequestException("Không còn đủ cầu thủ chưa chọn để quay lượt chọn mới");
         }
 
         List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrue(matchId);
@@ -112,13 +178,11 @@ public class SpinService {
             throw new BadRequestException("Cần có 2 đội trưởng để quay lượt pick");
         }
 
-        // Validate permission: only captains or admin can spin
-        if (currentUser != null) {
-            boolean isHost = hosts.stream().anyMatch(h -> h.getUser().getId().equals(currentUser.getId()));
-            boolean isAdmin = currentUser.getRole() == com.chimmoccanh.footballsquad.model.enums.UserRole.ADMIN;
-            if (!isHost && !isAdmin) {
-                throw new BadRequestException("Chỉ 2 Đội trưởng hoặc Admin mới có quyền bấm quay lượt chọn");
-            }
+        boolean isAdmin = currentUser != null && currentUser.getRole() == com.chimmoccanh.footballsquad.model.enums.UserRole.ADMIN;
+
+        // Validate consensus: both captains must be ready unless admin bypasses
+        if (!isAdmin && (!match.isPickRoundCaptainAReady() || !match.isPickRoundCaptainBReady())) {
+            throw new BadRequestException("Cần cả 2 đội trưởng xác nhận sẵn sàng trước khi quay lượt chọn");
         }
 
         // Sort by team to ensure consistent A/B ordering
@@ -147,9 +211,14 @@ public class SpinService {
 
         SpinSession savedSession = spinSessionRepository.save(session);
 
-        // Record first pick team and start turn timer (giving 5 seconds for wheel animation)
+        // Record first pick team and reset ready flags
         String firstPick = winnerIsA ? "A" : "B";
         match.setFirstPickTeam(firstPick);
+        match.setPickRoundCaptainAReady(false);
+        match.setPickRoundCaptainBReady(false);
+        match.setCurrentPickRound(match.getCurrentPickRound() + 1);
+        match.setRoundFirstPickerDone(false);
+        match.setRoundSecondPickerDone(false);
         match.setPickTurnStartedAt(java.time.LocalDateTime.now().plusSeconds(5));
         Match savedMatch = matchRepository.save(match);
 

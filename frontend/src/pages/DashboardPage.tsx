@@ -348,7 +348,7 @@ export const DashboardPage: React.FC = () => {
               {user && nextMatch.status !== 'PENDING' && (
                 <span className="text-xs font-space text-amber-700 dark:text-amber-400 flex items-center gap-1 font-medium">
                   <span className="material-symbols-outlined text-sm">lock</span>
-                  Đã đóng điểm danh ({nextMatch.status === 'IN_PROGRESS' ? 'Đang thi đấu' : 'Đang chia đội/xếp sa bàn'})
+                  Đã đóng điểm danh
                 </span>
               )}
             </div>

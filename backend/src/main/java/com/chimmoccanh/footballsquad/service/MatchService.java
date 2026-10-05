@@ -107,10 +107,23 @@ public class MatchService {
         return matches.stream().map(MatchDto::fromEntity).collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public MatchDto getMatchDetails(UUID matchId) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        if (match.getStatus() == MatchStatus.TEAMS_SPLIT) {
+            LocalDateTime scheduled = match.getMatchTime() != null
+                    ? LocalDateTime.of(match.getMatchDate(), match.getMatchTime())
+                    : match.getMatchDate().atStartOfDay();
+            if (!LocalDateTime.now().isBefore(scheduled)) {
+                match.setStatus(MatchStatus.IN_PROGRESS);
+                if (match.getStartAt() == null) {
+                    match.setStartAt(LocalDateTime.now());
+                }
+                match = matchRepository.save(match);
+            }
+        }
 
         MatchDto dto = MatchDto.fromEntity(match);
 
@@ -162,6 +175,98 @@ public class MatchService {
     }
 
     @Transactional
+    public MatchDto assignCaptains(UUID matchId, UUID hostAId, UUID hostBId, User admin) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        if (hostAId.equals(hostBId)) {
+            throw new BadRequestException("Hai đội trưởng phải là hai người khác nhau");
+        }
+
+        User hostA = userRepository.findById(hostAId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Đội trưởng A"));
+        User hostB = userRepository.findById(hostBId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Đội trưởng B"));
+
+        // Reset previous hosts if any
+        List<MatchParticipant> allParts = participantRepository.findByMatchId(matchId);
+        for (MatchParticipant p : allParts) {
+            if (Boolean.TRUE.equals(p.getIsHost())) {
+                p.setIsHost(false);
+                p.setTeam(Team.NONE);
+                participantRepository.save(p);
+            }
+        }
+
+        MatchParticipant partA = participantRepository.findByMatchIdAndUserId(matchId, hostA.getId())
+                .orElseGet(() -> MatchParticipant.builder().match(match).user(hostA).build());
+        partA.setIsHost(true);
+        partA.setTeam(Team.NONE);
+        partA.setPickOrder(0);
+        participantRepository.save(partA);
+
+        MatchParticipant partB = participantRepository.findByMatchIdAndUserId(matchId, hostB.getId())
+                .orElseGet(() -> MatchParticipant.builder().match(match).user(hostB).build());
+        partB.setIsHost(true);
+        partB.setTeam(Team.NONE);
+        partB.setPickOrder(0);
+        participantRepository.save(partB);
+
+        // Move match status to JERSEY_SELECTION
+        match.setStatus(MatchStatus.JERSEY_SELECTION);
+        match.setJerseyCaptainAReady(false);
+        match.setJerseyCaptainBReady(false);
+        match.setJerseyCaptainAConfirmed(false);
+        match.setJerseyCaptainBConfirmed(false);
+        match.setJerseyWinnerTeam(null);
+
+        Match saved = matchRepository.save(match);
+        MatchDto dto = getMatchDetails(saved.getId());
+        notificationService.broadcastMatchStatus(matchId, dto);
+        return dto;
+    }
+
+    @Transactional
+    public MatchDto confirmJerseyReady(UUID matchId, User user) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        if (match.getStatus() != MatchStatus.JERSEY_SELECTION) {
+            throw new BadRequestException("Trận đấu không ở bước Chọn áo đấu");
+        }
+
+        Optional<MatchParticipant> participantOpt = participantRepository.findByMatchIdAndUserId(matchId, user.getId());
+        boolean isCreator = match.getCreatedBy() != null && match.getCreatedBy().getId().equals(user.getId());
+        boolean isAdmin = user.getRole() == UserRole.ADMIN || isCreator;
+        boolean isCaptain = participantOpt.isPresent() && Boolean.TRUE.equals(participantOpt.get().getIsHost());
+
+        if (!isAdmin && !isCaptain) {
+            throw new BadRequestException("Chỉ Đội trưởng hoặc Quản trị viên mới có quyền xác nhận");
+        }
+
+        List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrue(matchId);
+        if (hosts.size() >= 2 && isCaptain) {
+            MatchParticipant host1 = hosts.get(0);
+            MatchParticipant host2 = hosts.get(1);
+            if (user.getId().equals(host1.getUser().getId())) {
+                match.setJerseyCaptainAReady(!match.isJerseyCaptainAReady());
+            } else if (user.getId().equals(host2.getUser().getId())) {
+                match.setJerseyCaptainBReady(!match.isJerseyCaptainBReady());
+            }
+        }
+
+        if (isAdmin && !isCaptain) {
+            match.setJerseyCaptainAReady(true);
+            match.setJerseyCaptainBReady(true);
+        }
+
+        Match saved = matchRepository.save(match);
+        MatchDto dto = getMatchDetails(saved.getId());
+        notificationService.broadcastMatchStatus(matchId, dto);
+        return dto;
+    }
+
+    @Transactional
     public MatchDto selectJersey(UUID matchId, String jerseyTeam, User user) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
@@ -181,17 +286,93 @@ public class MatchService {
         if (latestSpin.isPresent()) {
             SpinSession spin = latestSpin.get();
             boolean isWinner = spin.getWinner() != null && spin.getWinner().getId().equals(user.getId());
-            boolean isUserAdmin = user.getRole() == UserRole.ADMIN;
+            boolean isCreator = match.getCreatedBy() != null && match.getCreatedBy().getId().equals(user.getId());
+            boolean isUserAdmin = user.getRole() == UserRole.ADMIN || isCreator;
             if (!isWinner && !isUserAdmin) {
                 throw new BadRequestException("Chỉ đội trưởng thắng spin hoặc admin mới được chọn áo");
             }
         }
 
         match.setJerseyWinnerTeam(jerseyTeam);
-        match.setStatus(MatchStatus.PLAYER_PICKING);
+        match.setJerseyCaptainAConfirmed(false);
+        match.setJerseyCaptainBConfirmed(false);
+
+        // Assign actual team to participants based on winner selection
+        List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrue(matchId);
+        if (hosts.size() >= 2) {
+            MatchParticipant host1 = hosts.get(0);
+            MatchParticipant host2 = hosts.get(1);
+
+            User winnerUser = latestSpin.map(SpinSession::getWinner).orElse(user);
+            MatchParticipant winnerPart = host1.getUser().getId().equals(winnerUser.getId()) ? host1 : host2;
+            MatchParticipant loserPart = winnerPart.getUser().getId().equals(host1.getUser().getId()) ? host2 : host1;
+
+            if ("SPAIN".equalsIgnoreCase(jerseyTeam)) {
+                winnerPart.setTeam(Team.A); // Spain = Team A
+                loserPart.setTeam(Team.B);  // France = Team B
+            } else {
+                winnerPart.setTeam(Team.B); // France = Team B
+                loserPart.setTeam(Team.A);  // Spain = Team A
+            }
+            participantRepository.save(winnerPart);
+            participantRepository.save(loserPart);
+        }
+
         Match saved = matchRepository.save(match);
         MatchDto dto = getMatchDetails(saved.getId());
 
+        notificationService.broadcastMatchStatus(matchId, dto);
+        return dto;
+    }
+
+    @Transactional
+    public MatchDto confirmJerseyProceed(UUID matchId, User user) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        if (match.getStatus() != MatchStatus.JERSEY_SELECTION) {
+            throw new BadRequestException("Trận đấu không ở bước Chọn áo đấu");
+        }
+
+        if (match.getJerseyWinnerTeam() == null) {
+            throw new BadRequestException("Chưa hoàn thành chọn áo đấu!");
+        }
+
+        Optional<MatchParticipant> participantOpt = participantRepository.findByMatchIdAndUserId(matchId, user.getId());
+        boolean isCreator = match.getCreatedBy() != null && match.getCreatedBy().getId().equals(user.getId());
+        boolean isAdmin = user.getRole() == UserRole.ADMIN || isCreator;
+        boolean isCaptain = participantOpt.isPresent() && Boolean.TRUE.equals(participantOpt.get().getIsHost());
+
+        if (!isAdmin && !isCaptain) {
+            throw new BadRequestException("Chỉ Đội trưởng hoặc Quản trị viên mới có quyền xác nhận");
+        }
+
+        List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrue(matchId);
+        if (hosts.size() >= 2 && isCaptain) {
+            MatchParticipant host1 = hosts.get(0);
+            MatchParticipant host2 = hosts.get(1);
+            if (user.getId().equals(host1.getUser().getId())) {
+                match.setJerseyCaptainAConfirmed(!match.isJerseyCaptainAConfirmed());
+            } else if (user.getId().equals(host2.getUser().getId())) {
+                match.setJerseyCaptainBConfirmed(!match.isJerseyCaptainBConfirmed());
+            }
+        }
+
+        if (isAdmin && !isCaptain) {
+            match.setJerseyCaptainAConfirmed(true);
+            match.setJerseyCaptainBConfirmed(true);
+        }
+
+        if (match.isJerseyCaptainAConfirmed() && match.isJerseyCaptainBConfirmed()) {
+            match.setStatus(MatchStatus.PLAYER_PICKING);
+            match.setCurrentPickRound(1);
+            match.setPickRoundCaptainAReady(false);
+            match.setPickRoundCaptainBReady(false);
+            match.setFirstPickTeam(null);
+        }
+
+        Match saved = matchRepository.save(match);
+        MatchDto dto = getMatchDetails(saved.getId());
         notificationService.broadcastMatchStatus(matchId, dto);
         return dto;
     }
@@ -404,8 +585,9 @@ public class MatchService {
         boolean valid = switch (current) {
             case PENDING -> target == MatchStatus.JERSEY_SELECTION || target == MatchStatus.CANCELLED;
             case JERSEY_SELECTION -> target == MatchStatus.PLAYER_PICKING || target == MatchStatus.CANCELLED;
-            case PLAYER_PICKING -> target == MatchStatus.TRADE_WINDOW || target == MatchStatus.IN_PROGRESS || target == MatchStatus.CANCELLED;
-            case TRADE_WINDOW -> target == MatchStatus.IN_PROGRESS || target == MatchStatus.CANCELLED;
+            case PLAYER_PICKING -> target == MatchStatus.TRADE_WINDOW || target == MatchStatus.TEAMS_SPLIT || target == MatchStatus.IN_PROGRESS || target == MatchStatus.CANCELLED;
+            case TRADE_WINDOW -> target == MatchStatus.TEAMS_SPLIT || target == MatchStatus.IN_PROGRESS || target == MatchStatus.CANCELLED;
+            case TEAMS_SPLIT -> target == MatchStatus.IN_PROGRESS || target == MatchStatus.CANCELLED;
             case IN_PROGRESS -> target == MatchStatus.COMPLETED || target == MatchStatus.CANCELLED;
             case COMPLETED, CANCELLED -> false;
         };
@@ -483,7 +665,7 @@ public class MatchService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
 
         if (match.getStatus() != MatchStatus.PLAYER_PICKING) {
-            if (match.getStatus() == MatchStatus.TRADE_WINDOW || match.getStatus() == MatchStatus.IN_PROGRESS || match.getStatus() == MatchStatus.COMPLETED) {
+            if (match.getStatus() == MatchStatus.TRADE_WINDOW || match.getStatus() == MatchStatus.TEAMS_SPLIT || match.getStatus() == MatchStatus.IN_PROGRESS || match.getStatus() == MatchStatus.COMPLETED) {
                 return getMatchDetails(matchId);
             }
             throw new BadRequestException("Trận đấu không ở bước Chọn cầu thủ (PLAYER_PICKING)");
@@ -535,20 +717,17 @@ public class MatchService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
 
         if (match.getStatus() != MatchStatus.TRADE_WINDOW) {
-            if (match.getStatus() == MatchStatus.IN_PROGRESS || match.getStatus() == MatchStatus.COMPLETED) {
+            if (match.getStatus() == MatchStatus.TEAMS_SPLIT || match.getStatus() == MatchStatus.IN_PROGRESS || match.getStatus() == MatchStatus.COMPLETED) {
                 return getMatchDetails(matchId);
             }
             throw new BadRequestException("Trận đấu không ở bước Chỉnh sửa đội hình (TRADE_WINDOW)");
         }
 
-        // If 10 minutes have passed since trade window started, auto-transition to IN_PROGRESS
+        // If 10 minutes have passed since trade window started, auto-transition to TEAMS_SPLIT
         boolean isExpired = match.getTradeWindowStartedAt() != null &&
                 match.getTradeWindowStartedAt().plusMinutes(10).isBefore(LocalDateTime.now());
         if (isExpired) {
-            match.setStatus(MatchStatus.IN_PROGRESS);
-            if (match.getStartAt() == null) {
-                match.setStartAt(LocalDateTime.now());
-            }
+            match.setStatus(MatchStatus.TEAMS_SPLIT);
             Match saved = matchRepository.save(match);
             MatchDto dto = getMatchDetails(saved.getId());
             notificationService.broadcastMatchStatus(matchId, dto);
@@ -578,15 +757,55 @@ public class MatchService {
         }
 
         if (match.isCaptainAConfirmedNoTrade() && match.isCaptainBConfirmedNoTrade()) {
-            match.setStatus(MatchStatus.IN_PROGRESS);
-            if (match.getStartAt() == null) {
-                match.setStartAt(LocalDateTime.now());
-            }
+            match.setStatus(MatchStatus.TEAMS_SPLIT);
         }
 
         Match saved = matchRepository.save(match);
         MatchDto dto = getMatchDetails(saved.getId());
         notificationService.broadcastMatchStatus(matchId, dto);
+        return dto;
+    }
+
+    @Transactional
+    public MatchParticipantDto addGuestParticipant(UUID matchId, com.chimmoccanh.footballsquad.dto.request.AddGuestParticipantRequest request, User currentUser) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        boolean isAdmin = currentUser != null && currentUser.getRole() == UserRole.ADMIN;
+        boolean isCreator = currentUser != null && match.getCreatedBy() != null && match.getCreatedBy().getId().equals(currentUser.getId());
+        if (!isAdmin && !isCreator) {
+            throw new UnauthorizedException("Chỉ Quản trị viên mới có quyền thêm cầu thủ khách vào trận");
+        }
+
+        if (match.getStatus() != MatchStatus.PENDING) {
+            throw new BadRequestException("Chỉ có thể thêm cầu thủ ở bước Điểm danh (PENDING)");
+        }
+
+        String guestUid = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        User guestUser = User.builder()
+                .username("guest_" + guestUid)
+                .fullName(request.getFullName().trim())
+                .jerseyNumber(request.getJerseyNumber())
+                .email("guest_" + guestUid + "@guest.local")
+                .passwordHash("$2a$10$7EqJtq98hPqEX7fNZaFWoO.fHZZkL3Gg08k8Ecm94Ua/R1dFsq14y")
+                .role(UserRole.GUEST)
+                .status(com.chimmoccanh.footballsquad.model.enums.UserStatus.ACTIVE)
+                .build();
+
+        User savedUser = userRepository.save(guestUser);
+
+        MatchParticipant participant = MatchParticipant.builder()
+                .match(match)
+                .user(savedUser)
+                .team(Team.NONE)
+                .isHost(false)
+                .jerseyNumber(request.getJerseyNumber())
+                .build();
+
+        MatchParticipant savedParticipant = participantRepository.save(participant);
+        MatchParticipantDto dto = MatchParticipantDto.fromEntity(savedParticipant);
+
+        notificationService.broadcastMatchStatus(matchId, getMatchDetails(matchId));
         return dto;
     }
 }

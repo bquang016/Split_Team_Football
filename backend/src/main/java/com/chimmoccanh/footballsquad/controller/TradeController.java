@@ -1,6 +1,7 @@
 package com.chimmoccanh.footballsquad.controller;
 
 import com.chimmoccanh.footballsquad.dto.request.CreateTradeRequestDto;
+import com.chimmoccanh.footballsquad.dto.request.DonatePlayerRequest;
 import com.chimmoccanh.footballsquad.dto.response.ApiResponse;
 import com.chimmoccanh.footballsquad.dto.response.TradeRequestDto;
 import com.chimmoccanh.footballsquad.security.CustomUserDetails;
@@ -60,5 +61,15 @@ public class TradeController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         TradeRequestDto trade = tradeService.cancelTrade(id, tradeId, userDetails.getUser());
         return ResponseEntity.ok(ApiResponse.ok("Đã hủy yêu cầu chuyển nhượng", trade));
+    }
+
+    @PostMapping("/donate")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<TradeRequestDto>> donatePlayer(
+            @PathVariable UUID id,
+            @Valid @RequestBody DonatePlayerRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        TradeRequestDto trade = tradeService.donatePlayer(id, request, userDetails.getUser());
+        return ResponseEntity.ok(ApiResponse.ok("Đã chuyển nhượng cầu thủ thành công", trade));
     }
 }

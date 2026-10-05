@@ -12,6 +12,8 @@ import { LineupPosterModal } from '../components/lineup/LineupPosterModal';
 import { FORMATION_PRESETS_7V7, TEAM_A_NAME, TEAM_B_NAME, detectPositionFromCoordinates } from '../utils/constants';
 import type { Match, MatchLineup, Position, Team } from '../types';
 import toast from 'react-hot-toast';
+import spainJerseyImg from '../assets/ao_dau/taybannha.webp';
+import franceJerseyImg from '../assets/ao_dau/phap.webp';
 
 export const LineupPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -46,7 +48,10 @@ export const LineupPage: React.FC = () => {
     [adminActive, match, user?.id]
   );
 
+  const [editingTeams, setEditingTeams] = useState<Record<string, boolean>>({ A: false, B: false });
   const isEditable = canEdit(activeTeam);
+  const isEditing = Boolean(editingTeams[activeTeam]);
+  const isPitchInteractive = isEditable && isEditing;
 
   const teamALabel =
     match?.jerseyWinnerTeam === 'SPAIN'
@@ -79,6 +84,12 @@ export const LineupPage: React.FC = () => {
         };
       });
       setLineups(enrichedLineups);
+      const teamALineups = enrichedLineups.filter((l) => l.team === 'A');
+      const teamBLineups = enrichedLineups.filter((l) => l.team === 'B');
+      setEditingTeams((prev) => ({
+        A: prev.A || teamALineups.length === 0,
+        B: prev.B || teamBLineups.length === 0,
+      }));
     } catch {
       toast.error('Không thể tải sơ đồ thi đấu');
     } finally {
@@ -93,7 +104,7 @@ export const LineupPage: React.FC = () => {
   // Update on-pitch position coordinates & automatically adjust role (GK, CB, ST, etc.) based on coordinates
   const handleUpdatePosition = useCallback(
     (userId: string, xPercent: number, yPercent: number) => {
-      if (!isEditable) return;
+      if (!isPitchInteractive) return;
       const detectedPosition = detectPositionFromCoordinates(xPercent, yPercent);
       setLineups((prev) =>
         prev.map((l) =>
@@ -103,13 +114,13 @@ export const LineupPage: React.FC = () => {
         )
       );
     },
-    [isEditable, activeTeam]
+    [isPitchInteractive, activeTeam]
   );
 
   // Update position label (GK, CB, ST...)
   const handleUpdatePositionLabel = useCallback(
     (userId: string, positionLabel: Position) => {
-      if (!isEditable) return;
+      if (!isPitchInteractive) return;
       setLineups((prev) =>
         prev.map((l) => (l.user.id === userId && l.team === activeTeam ? { ...l, positionLabel } : l))
       );
@@ -119,8 +130,8 @@ export const LineupPage: React.FC = () => {
 
   // Apply formation preset
   const handleApplyPreset = (presetIndex: number) => {
-    if (!isEditable) {
-      toast.error('Bạn chỉ có quyền xếp đội hình cho đội của mình');
+    if (!isPitchInteractive) {
+      toast.error('Vui lòng bấm "Chỉnh sửa sơ đồ" trước khi thay đổi chiến thuật');
       return;
     }
     const preset = FORMATION_PRESETS_7V7[presetIndex];
@@ -234,20 +245,20 @@ export const LineupPage: React.FC = () => {
   // Bench a player (remove from pitch starters)
   const handleBenchPlayer = useCallback(
     (userId: string) => {
-      if (!isEditable) return;
+      if (!isPitchInteractive) return;
       setLineups((prev) => prev.filter((l) => !(l.team === activeTeam && l.user.id === userId)));
       if (selectedUserId === userId) {
         setSelectedUserId(null);
       }
       toast.success('Đã chuyển cầu thủ ra hàng ghế dự bị');
     },
-    [isEditable, activeTeam, selectedUserId]
+    [isPitchInteractive, activeTeam, selectedUserId]
   );
 
   // Start a player from bench (1-click from sidebar or bench button)
   const handleStartPlayer = useCallback(
     (userId: string) => {
-      if (!isEditable || !match?.participants) return;
+      if (!isPitchInteractive || !match?.participants) return;
       const participant = match.participants.find((p) => p.user.id === userId && p.team === activeTeam);
       if (!participant) return;
 
@@ -304,14 +315,18 @@ export const LineupPage: React.FC = () => {
     [isEditable, match?.participants, match?.id, activeTeam, lineups, selectedUserId]
   );
 
-  // Save lineup to backend
+  // Save lineup to backend (Only saves active team)
   const handleSave = useCallback(async () => {
     if (!id) return;
     setSaving(true);
     try {
+      const teamLineups = adminActive
+        ? lineups
+        : lineups.filter((l) => l.team === activeTeam);
+
       await lineupService.saveLineup(
         id,
-        lineups.map((l) => ({
+        teamLineups.map((l) => ({
           userId: l.user.id,
           team: l.team,
           positionLabel: l.positionLabel,
@@ -320,13 +335,15 @@ export const LineupPage: React.FC = () => {
           jerseyNumber: l.jerseyNumber,
         }))
       );
-      toast.success('Đã lưu sơ đồ thi đấu thành công!');
+      toast.success(`Đã chốt xong đội hình ${activeTeamLabel}!`);
+      setEditingTeams((prev) => ({ ...prev, [activeTeam]: false }));
+      fetchMatchData();
     } catch {
       toast.error('Lỗi khi lưu sơ đồ');
     } finally {
       setSaving(false);
     }
-  }, [id, lineups]);
+  }, [id, lineups, adminActive, activeTeam, activeTeamLabel]);
 
   // Keyboard shortcut Ctrl+S / Cmd+S
   useEffect(() => {
@@ -464,7 +481,11 @@ export const LineupPage: React.FC = () => {
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-800/40'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-white" />
+            <img
+              src={match?.jerseyWinnerTeam === 'FRANCE' ? franceJerseyImg : spainJerseyImg}
+              alt={teamALabel}
+              className="w-5 h-5 object-contain filter drop-shadow"
+            />
             <span>{teamALabel}</span>
             {canEdit('A') && (
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-black/40 text-rose-200">
@@ -485,7 +506,11 @@ export const LineupPage: React.FC = () => {
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-800/40'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-white" />
+            <img
+              src={match?.jerseyWinnerTeam === 'FRANCE' ? spainJerseyImg : franceJerseyImg}
+              alt={teamBLabel}
+              className="w-5 h-5 object-contain filter drop-shadow"
+            />
             <span>{teamBLabel}</span>
             {canEdit('B') && (
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-black/40 text-blue-200">
@@ -504,22 +529,33 @@ export const LineupPage: React.FC = () => {
           />
 
           {isEditable && (
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs sm:text-sm font-bold font-space transition-all disabled:opacity-60 cursor-pointer shadow-md shadow-emerald-500/20"
-              title="Phím tắt: Ctrl + S"
-            >
-              {saving ? (
-                <span className="material-symbols-outlined text-base animate-spin">
-                  progress_activity
-                </span>
-              ) : (
-                <span className="material-symbols-outlined text-base">save</span>
-              )}
-              <span>Lưu sơ đồ</span>
-            </button>
+            isEditing ? (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs sm:text-sm font-bold font-space transition-all disabled:opacity-60 cursor-pointer shadow-md shadow-emerald-500/20"
+                title="Phím tắt: Ctrl + S"
+              >
+                {saving ? (
+                  <span className="material-symbols-outlined text-base animate-spin">
+                    progress_activity
+                  </span>
+                ) : (
+                  <span className="material-symbols-outlined text-base">save</span>
+                )}
+                <span>Lưu đội hình</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditingTeams((prev) => ({ ...prev, [activeTeam]: true }))}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-bold font-space transition-all cursor-pointer shadow-md shadow-amber-500/20"
+              >
+                <span className="material-symbols-outlined text-base">edit</span>
+                <span>Chỉnh sửa sơ đồ</span>
+              </button>
+            )
           )}
         </div>
       </div>
@@ -539,7 +575,7 @@ export const LineupPage: React.FC = () => {
             activeTeam={activeTeam}
             teamLabel={activeTeamLabel}
             formationName={activePreset}
-            isEditable={isEditable}
+            isEditable={isPitchInteractive}
             selectedUserId={selectedUserId}
             pitchTheme={pitchTheme}
             showNames={showNames}
@@ -557,7 +593,7 @@ export const LineupPage: React.FC = () => {
           <BenchReserves
             benchPlayers={currentTeamBench}
             team={activeTeam}
-            isEditable={isEditable}
+            isEditable={isPitchInteractive}
             onStartPlayer={handleStartPlayer}
             onDropOnBench={handleBenchPlayer}
           />
@@ -571,7 +607,7 @@ export const LineupPage: React.FC = () => {
             match={match}
             activeTeam={activeTeam}
             teamLabel={activeTeamLabel}
-            isEditable={isEditable}
+            isEditable={isPitchInteractive}
             lineups={lineups}
             benchPlayers={currentTeamBench}
             selectedUserId={selectedUserId}

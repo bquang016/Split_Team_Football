@@ -33,6 +33,16 @@ public class MatchDto {
     private String jerseyWinnerTeam;    // "SPAIN" hoặc "FRANCE"
     private String firstPickTeam;       // "A" hoặc "B"
     private LocalDateTime pickTurnStartedAt;
+    private boolean pickRoundCaptainAReady;
+    private boolean pickRoundCaptainBReady;
+    private int currentPickRound;
+    private boolean roundFirstPickerDone;
+    private boolean roundSecondPickerDone;
+    private boolean jerseyCaptainAReady;
+    private boolean jerseyCaptainBReady;
+    private LocalDateTime jerseyTurnStartedAt;
+    private boolean jerseyCaptainAConfirmed;
+    private boolean jerseyCaptainBConfirmed;
     private LocalDateTime tradeWindowStartedAt;
     private boolean captainAConfirmedProceed;
     private boolean captainBConfirmedProceed;
@@ -68,6 +78,16 @@ public class MatchDto {
                 .jerseyWinnerTeam(match.getJerseyWinnerTeam())
                 .firstPickTeam(match.getFirstPickTeam())
                 .pickTurnStartedAt(match.getPickTurnStartedAt())
+                .pickRoundCaptainAReady(match.isPickRoundCaptainAReady())
+                .pickRoundCaptainBReady(match.isPickRoundCaptainBReady())
+                .currentPickRound(match.getCurrentPickRound())
+                .roundFirstPickerDone(match.isRoundFirstPickerDone())
+                .roundSecondPickerDone(match.isRoundSecondPickerDone())
+                .jerseyCaptainAReady(match.isJerseyCaptainAReady())
+                .jerseyCaptainBReady(match.isJerseyCaptainBReady())
+                .jerseyTurnStartedAt(match.getJerseyTurnStartedAt())
+                .jerseyCaptainAConfirmed(match.isJerseyCaptainAConfirmed())
+                .jerseyCaptainBConfirmed(match.isJerseyCaptainBConfirmed())
                 .tradeWindowStartedAt(match.getTradeWindowStartedAt())
                 .captainAConfirmedProceed(match.isCaptainAConfirmedProceed())
                 .captainBConfirmedProceed(match.isCaptainBConfirmedProceed())

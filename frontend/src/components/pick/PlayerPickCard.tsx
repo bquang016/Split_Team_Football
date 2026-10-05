@@ -2,6 +2,8 @@ import React from 'react';
 import { MatchParticipant } from '../../types';
 import { Avatar, Badge } from '../../ui';
 import { TEAM_A_COLOR, TEAM_B_COLOR } from '../../utils/constants';
+import spainJerseyImg from '../../assets/ao_dau/taybannha.webp';
+import franceJerseyImg from '../../assets/ao_dau/phap.webp';
 
 interface PlayerPickCardProps {
   participant: MatchParticipant;
@@ -61,20 +63,22 @@ export const PlayerPickCard: React.FC<PlayerPickCardProps> = ({
                 <button
                   onClick={onPickA}
                   title="Chọn vào Đội A (Tây Ban Nha)"
-                  className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold text-white shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold text-white shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
                   style={{ backgroundColor: TEAM_A_COLOR }}
                 >
-                  + Đội A
+                  <img src={spainJerseyImg} alt="Áo Tây Ban Nha" className="w-4 h-4 object-contain" />
+                  <span>+ Đội A</span>
                 </button>
               )}
               {canPickB && onPickB && (
                 <button
                   onClick={onPickB}
                   title="Chọn vào Đội B (Pháp)"
-                  className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold text-white shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold text-white shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
                   style={{ backgroundColor: TEAM_B_COLOR }}
                 >
-                  + Đội B
+                  <img src={franceJerseyImg} alt="Áo Pháp" className="w-4 h-4 object-contain" />
+                  <span>+ Đội B</span>
                 </button>
               )}
               {canPickBench && onPickBench && (

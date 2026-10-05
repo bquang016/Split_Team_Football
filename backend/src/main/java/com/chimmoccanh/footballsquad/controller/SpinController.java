@@ -30,12 +30,25 @@ public class SpinController {
         return ResponseEntity.ok(ApiResponse.ok("Bắt đầu quay chọn đội trưởng", session));
     }
 
+    @PostMapping("/jersey")
+    public ResponseEntity<ApiResponse<SpinSessionDto>> spinJersey(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Vui lòng đăng nhập để thực hiện thao tác"));
+        }
+        SpinSessionDto session = spinService.spinJerseyTurn(id, userDetails.getUser());
+        return ResponseEntity.ok(ApiResponse.ok("Quay chọn quyền chọn áo đấu thành công", session));
+    }
+
     @PostMapping("/round-pick")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<SpinSessionDto>> spinRoundPick(
             @PathVariable UUID id,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        SpinSessionDto session = spinService.spinRoundPick(id, userDetails != null ? userDetails.getUser() : null);
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Vui lòng đăng nhập để thực hiện thao tác"));
+        }
+        SpinSessionDto session = spinService.spinRoundPick(id, userDetails.getUser());
         return ResponseEntity.ok(ApiResponse.ok("Quay lượt chọn cầu thủ thành công", session));
     }
 

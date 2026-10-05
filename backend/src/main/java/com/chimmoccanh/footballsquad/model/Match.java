@@ -73,6 +73,47 @@ public class Match {
     @Column(name = "pick_turn_started_at")
     private LocalDateTime pickTurnStartedAt; // Thời điểm bắt đầu lượt pick hiện tại để đếm ngược 60s
 
+    // Pick round tracking & consensus
+    @Column(name = "pick_round_captain_a_ready")
+    @Builder.Default
+    private boolean pickRoundCaptainAReady = false;
+
+    @Column(name = "pick_round_captain_b_ready")
+    @Builder.Default
+    private boolean pickRoundCaptainBReady = false;
+
+    @Column(name = "current_pick_round")
+    @Builder.Default
+    private int currentPickRound = 0;
+
+    @Column(name = "round_first_picker_done")
+    @Builder.Default
+    private boolean roundFirstPickerDone = false;
+
+    @Column(name = "round_second_picker_done")
+    @Builder.Default
+    private boolean roundSecondPickerDone = false;
+
+    // Jersey selection consensus & confirmation
+    @Column(name = "jersey_captain_a_ready")
+    @Builder.Default
+    private boolean jerseyCaptainAReady = false;
+
+    @Column(name = "jersey_captain_b_ready")
+    @Builder.Default
+    private boolean jerseyCaptainBReady = false;
+
+    @Column(name = "jersey_turn_started_at")
+    private LocalDateTime jerseyTurnStartedAt;
+
+    @Column(name = "jersey_captain_a_confirmed")
+    @Builder.Default
+    private boolean jerseyCaptainAConfirmed = false;
+
+    @Column(name = "jersey_captain_b_confirmed")
+    @Builder.Default
+    private boolean jerseyCaptainBConfirmed = false;
+
     @Column(name = "trade_window_started_at")
     private LocalDateTime tradeWindowStartedAt; // Thời điểm bắt đầu trade window để sync timer
 

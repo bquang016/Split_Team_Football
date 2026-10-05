@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { User } from '../../types';
 import { TEAM_A_COLOR, TEAM_B_COLOR } from '../../utils/constants';
@@ -10,7 +10,9 @@ interface SpinWheelProps {
   spinSeed?: number | null;
   durationMs?: number;
   isSpinning: boolean;
-  onSpinComplete?: () => void;
+  colorA?: string;
+  colorB?: string;
+  onSpinComplete?: (winner?: User | null) => void;
 }
 
 export const SpinWheel: React.FC<SpinWheelProps> = ({
@@ -19,10 +21,18 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
   winner,
   durationMs = 4500,
   isSpinning,
+  colorA = TEAM_A_COLOR,
+  colorB = TEAM_B_COLOR,
   onSpinComplete,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [currentAngle, setCurrentAngle] = useState(0);
+  const currentAngleRef = useRef(0);
+  const animIdRef = useRef<number | null>(null);
+  const safetyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAnimatingRef = useRef(false);
+  const currentAnimatedWinnerIdRef = useRef<string | null>(null);
+  const onSpinCompleteRef = useRef(onSpinComplete);
+  onSpinCompleteRef.current = onSpinComplete;
 
   // Number of slices on the wheel (10 slices alternating A and B)
   const sliceCount = 10;
@@ -56,7 +66,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
       ctx.moveTo(0, 0);
       ctx.arc(0, 0, radius, startAngle, endAngle);
       ctx.closePath();
-      ctx.fillStyle = isTeamA ? TEAM_A_COLOR : TEAM_B_COLOR;
+      ctx.fillStyle = isTeamA ? colorA : colorB;
       ctx.fill();
 
       // Slice inner border
@@ -101,12 +111,46 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
     ctx.fillText('VS', center, center);
   };
 
+  // Initial draw and redraw on host/color change
   useEffect(() => {
-    drawWheel(currentAngle);
-  }, [hostA, hostB, currentAngle]);
+    drawWheel(currentAngleRef.current);
+  }, [hostA.id, hostB.id, colorA, colorB]);
 
+  // Main animation handler
   useEffect(() => {
-    if (!isSpinning || !winner) return;
+    if (!isSpinning || !winner) {
+      if (!isSpinning) {
+        if (animIdRef.current) {
+          cancelAnimationFrame(animIdRef.current);
+          animIdRef.current = null;
+        }
+        if (safetyTimeoutRef.current) {
+          clearTimeout(safetyTimeoutRef.current);
+          safetyTimeoutRef.current = null;
+        }
+        isAnimatingRef.current = false;
+        currentAnimatedWinnerIdRef.current = null;
+      }
+      return;
+    }
+
+    // If already animating for this specific winner, let it continue without interruption
+    if (isAnimatingRef.current && currentAnimatedWinnerIdRef.current === winner.id) {
+      return;
+    }
+
+    // Cancel any previous loop
+    if (animIdRef.current) {
+      cancelAnimationFrame(animIdRef.current);
+      animIdRef.current = null;
+    }
+    if (safetyTimeoutRef.current) {
+      clearTimeout(safetyTimeoutRef.current);
+      safetyTimeoutRef.current = null;
+    }
+
+    isAnimatingRef.current = true;
+    currentAnimatedWinnerIdRef.current = winner.id;
 
     const winnerIsA = winner.id === hostA.id;
     const targetSliceIndex = winnerIsA ? 0 : 1;
@@ -116,9 +160,38 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
 
     // Add 6 to 8 full rotations
     const totalRotation = 6 * 2 * Math.PI + baseTargetAngle;
-
     const startTime = performance.now();
-    let animId: number;
+
+    const finishSpin = () => {
+      if (!isAnimatingRef.current) return;
+      isAnimatingRef.current = false;
+      if (animIdRef.current) {
+        cancelAnimationFrame(animIdRef.current);
+        animIdRef.current = null;
+      }
+      if (safetyTimeoutRef.current) {
+        clearTimeout(safetyTimeoutRef.current);
+        safetyTimeoutRef.current = null;
+      }
+
+      currentAngleRef.current = totalRotation % (2 * Math.PI);
+      drawWheel(totalRotation);
+
+      // Confetti celebration
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: winnerIsA ? ['#DC2626', '#F59E0B', '#FFFFFF'] : ['#2563EB', '#F59E0B', '#FFFFFF'],
+      });
+
+      if (onSpinCompleteRef.current) {
+        onSpinCompleteRef.current(winner);
+      }
+    };
+
+    // Safety fallback timeout: guaranteed to finish spin even if RAF is throttled or interrupted
+    safetyTimeoutRef.current = setTimeout(finishSpin, durationMs + 600);
 
     const animate = (now: number) => {
       const elapsed = now - startTime;
@@ -128,32 +201,30 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
       const easeProgress = 1 - Math.pow(1 - progress, 3);
       const angle = easeProgress * totalRotation;
 
-      setCurrentAngle(angle);
+      currentAngleRef.current = angle;
       drawWheel(angle);
 
       if (progress < 1) {
-        animId = requestAnimationFrame(animate);
+        animIdRef.current = requestAnimationFrame(animate);
       } else {
-        // Confetti!
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: winnerIsA ? ['#DC2626', '#F59E0B', '#FFFFFF'] : ['#2563EB', '#F59E0B', '#FFFFFF'],
-        });
-
-        if (onSpinComplete) {
-          onSpinComplete();
-        }
+        finishSpin();
       }
     };
 
-    animId = requestAnimationFrame(animate);
+    animIdRef.current = requestAnimationFrame(animate);
 
     return () => {
-      cancelAnimationFrame(animId);
+      // Intentionally do not cancel RAF here on re-render if winner hasn't changed
     };
-  }, [isSpinning, winner]);
+  }, [isSpinning, winner?.id, durationMs, hostA.id, sliceAngle]);
+
+  // Clean up all timers and RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (animIdRef.current) cancelAnimationFrame(animIdRef.current);
+      if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
+    };
+  }, []);
 
   return (
     <div className="relative flex flex-col items-center justify-center p-4">
