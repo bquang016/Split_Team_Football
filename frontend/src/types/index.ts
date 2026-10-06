@@ -39,10 +39,20 @@ export interface User {
   fullName: string;
   jerseyNumber?: number;
   avatarUrl?: string;
+  favoritePosition?: string;
   email?: string;
   role: UserRole;
   status: UserStatus;
   createdAt: string;
+}
+
+export interface CheckAvailabilityResult {
+  usernameAvailable: boolean;
+  usernameError?: string;
+  emailAvailable: boolean;
+  emailError?: string;
+  jerseyNumberAvailable: boolean;
+  jerseyNumberError?: string;
 }
 
 export interface MatchParticipant {
@@ -147,6 +157,7 @@ export interface PlayerStats {
   saves: number;     // Cứu thua (thủ môn / hậu vệ)
   isWinner: boolean;
   isMvp: boolean;
+  rating?: number | null; // Điểm đánh giá thang 10 (vd: 7.8, 9.5)
   enteredBy?: User;
   enteredAt?: string;
 }
@@ -177,6 +188,20 @@ export interface LeaderboardItem {
   totalMvp: number;      // Số lần MVP
   winRate: number;
   updatedAt: string;
+}
+
+export interface RatingLeaderboardItem {
+  rank: number;
+  user: User;
+  totalRating: number;
+  averageRating: number;
+  ratedMatches: number;
+  totalMatches: number;
+  totalGoals: number;
+  totalAssists: number;
+  totalSaves: number;
+  totalMvp: number;
+  isBestPlayer: boolean;
 }
 
 export interface PlayerSummary {

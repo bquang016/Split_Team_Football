@@ -3,9 +3,10 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --font-sans: "Be Vietnam Pro", "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Be Vietnam Pro", "Plus Jakarta Sans", "Montserrat", sans-serif;
-  --font-mono: "JetBrains Mono", "Barlow Semi Condensed", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Plus Jakarta Sans", "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Be Vietnam Pro", sans-serif;
+  --font-heading: "Plus Jakarta Sans", "Be Vietnam Pro", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 @theme {
@@ -20,12 +21,12 @@
   --color-pitch-crimson: #EF4444;
 
   /* Typography Fonts - 100% Full Vietnamese Character Set */
-  --font-sans: "Be Vietnam Pro", "Plus Jakarta Sans", "Inter", sans-serif;
-  --font-space: "Be Vietnam Pro", "Plus Jakarta Sans", sans-serif;
-  --font-headline: "Be Vietnam Pro", "Plus Jakarta Sans", sans-serif;
-  --font-heading: "Be Vietnam Pro", "Plus Jakarta Sans", sans-serif;
-  --font-display: "Be Vietnam Pro", "Plus Jakarta Sans", "Montserrat", sans-serif;
-  --font-mono: "JetBrains Mono", "Barlow Semi Condensed", monospace;
+  --font-sans: "Plus Jakarta Sans", "Be Vietnam Pro", sans-serif;
+  --font-space: "Plus Jakarta Sans", "Be Vietnam Pro", sans-serif;
+  --font-headline: "Plus Jakarta Sans", "Be Vietnam Pro", sans-serif;
+  --font-heading: "Plus Jakarta Sans", "Be Vietnam Pro", sans-serif;
+  --font-display: "Plus Jakarta Sans", "Be Vietnam Pro", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 }
 
 @layer base {
@@ -67,8 +68,8 @@
   }
 
   h1, h2, h3, h4, h5, h6, .font-display, .font-space, .font-headline, .font-heading {
-    font-family: "Be Vietnam Pro", "Plus Jakarta Sans", "Montserrat", sans-serif;
-    letter-spacing: -0.02em;
+    font-family: "Plus Jakarta Sans", "Be Vietnam Pro", sans-serif;
+    letter-spacing: -0.01em;
   }
 
   html.dark h1, html.dark h2, html.dark h3, html.dark h4, html.dark h5, html.dark h6 {

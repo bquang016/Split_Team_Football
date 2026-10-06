@@ -44,7 +44,7 @@ export const LiveGoalTimeline: React.FC<LiveGoalTimelineProps> = ({
       }
 
       const diffMs = Date.now() - startTime.getTime();
-      const diffMin = Math.max(1, Math.floor(diffMs / 60000));
+      const diffMin = Math.max(1, Math.min(120, Math.floor(diffMs / 60000)));
       // Clamp for 2-hour match (1 - 120 mins)
       setCurrentLiveMinute(diffMin);
     };
@@ -144,8 +144,12 @@ export const LiveGoalTimeline: React.FC<LiveGoalTimelineProps> = ({
               Diễn Biến Bàn Thắng Trên Sân (Match Timeline)
             </h3>
             {isLive && (
-              <span className="px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-[11px] font-space font-black animate-pulse">
-                Phút {currentLiveMinute}' (Live)
+              <span className={`px-2.5 py-0.5 rounded-full border text-[11px] font-space font-black ${
+                currentLiveMinute >= 120
+                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse'
+              }`}>
+                {currentLiveMinute >= 120 ? "Phút 120' (Hết giờ thi đấu)" : `Phút ${currentLiveMinute}' (Live)`}
               </span>
             )}
           </div>
@@ -196,10 +200,10 @@ export const LiveGoalTimeline: React.FC<LiveGoalTimelineProps> = ({
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="material-symbols-outlined text-emerald-500 text-base">sports_soccer</span>
                       <strong className="text-sm font-space font-bold text-slate-900 dark:text-white">
-                        {g.scorer.fullName}
+                        {g.scorer?.fullName || 'Cầu thủ'}
                       </strong>
                       <span className="text-xs text-slate-500 font-space font-medium">
-                        (#{g.scorer.jerseyNumber || '—'})
+                        (#{g.scorer?.jerseyNumber || '—'})
                       </span>
                       {g.goalCount > 1 && (
                         <Badge variant="gold" size="sm">
@@ -217,7 +221,7 @@ export const LiveGoalTimeline: React.FC<LiveGoalTimelineProps> = ({
                     {g.assist && (
                       <span className="text-[11px] text-slate-500 dark:text-slate-400 font-space mt-0.5 flex items-center gap-1">
                         <span className="material-symbols-outlined text-xs text-emerald-500">handshake</span>
-                        Kiến tạo: <strong>{g.assist.fullName}</strong> (#{g.assist.jerseyNumber || '—'})
+                        Kiến tạo: <strong>{g.assist?.fullName || '—'}</strong> (#{g.assist?.jerseyNumber || '—'})
                       </span>
                     )}
                   </div>

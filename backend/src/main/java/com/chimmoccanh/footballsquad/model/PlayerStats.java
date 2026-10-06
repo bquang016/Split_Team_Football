@@ -54,6 +54,9 @@ public class PlayerStats {
     @Builder.Default
     private Boolean isMvp = false;
 
+    @Column(name = "rating")
+    private Double rating;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "entered_by")
     private User enteredBy;

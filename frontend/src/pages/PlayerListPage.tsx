@@ -83,6 +83,7 @@ export const PlayerListPage: React.FC = () => {
               <Card hoverable elevation="level1" className="flex items-center gap-3.5 p-4 group">
                 <Avatar
                   name={player.fullName}
+                  src={player.avatarUrl}
                   jerseyNumber={player.jerseyNumber}
                   size="lg"
                   showNumber

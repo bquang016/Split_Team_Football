@@ -5,6 +5,7 @@ import com.chimmoccanh.footballsquad.dto.request.RefreshTokenRequest;
 import com.chimmoccanh.footballsquad.dto.request.RegisterRequest;
 import com.chimmoccanh.footballsquad.dto.response.ApiResponse;
 import com.chimmoccanh.footballsquad.dto.response.AuthResponse;
+import com.chimmoccanh.footballsquad.dto.response.CheckAvailabilityResponse;
 import com.chimmoccanh.footballsquad.dto.response.UserDto;
 import com.chimmoccanh.footballsquad.security.CustomUserDetails;
 import com.chimmoccanh.footballsquad.service.AuthService;
@@ -62,5 +63,16 @@ public class AuthController {
     public ResponseEntity<ApiResponse<java.util.List<UserDto>>> getQuickUsers() {
         java.util.List<UserDto> users = authService.getQuickUsers();
         return ResponseEntity.ok(ApiResponse.ok(users));
+    }
+
+    @GetMapping("/check-availability")
+    public ResponseEntity<ApiResponse<CheckAvailabilityResponse>> checkAvailability(
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) Integer jerseyNumber,
+            @RequestParam(required = false) java.util.UUID excludeUserId,
+            @RequestParam(required = false) Boolean forGuest) {
+        CheckAvailabilityResponse response = authService.checkAvailability(username, email, jerseyNumber, excludeUserId, forGuest);
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }

@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import clsx from 'clsx';
 import { getAvatarColor, getInitials } from '../utils/formatters';
 
 export interface AvatarProps {
   name?: string;
+  src?: string;
+  avatarUrl?: string;
   jerseyNumber?: number;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
@@ -13,12 +15,21 @@ export interface AvatarProps {
 
 export const Avatar: React.FC<AvatarProps> = ({
   name = '',
+  src,
+  avatarUrl,
   jerseyNumber,
   size = 'md',
   className,
   bgColor,
   showNumber = false,
 }) => {
+  const imageSource = src || avatarUrl;
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [imageSource]);
+
   const initials = getInitials(name);
   const background = bgColor || getAvatarColor(name);
 
@@ -36,17 +47,29 @@ export const Avatar: React.FC<AvatarProps> = ({
     xl: 'text-sm w-7 h-7 -bottom-2 -right-2',
   };
 
+  const hasImage = Boolean(imageSource && !imgError);
+
   return (
-    <div className={clsx('relative inline-flex flex-shrink-0 select-none', className)}>
+    <div className={clsx('relative inline-flex flex-shrink-0 select-none rounded-full', className)}>
       <div
         className={clsx(
-          'rounded-full flex items-center justify-center font-heading text-white shadow-md border-2 border-white/20',
+          'rounded-full flex items-center justify-center font-heading text-white shadow-md border-2 border-white/20 overflow-hidden',
           sizeClasses[size]
         )}
-        style={{ backgroundColor: background }}
+        style={{ backgroundColor: hasImage ? 'transparent' : background }}
         title={name}
       >
-        <span>{initials}</span>
+        {hasImage ? (
+          <img
+            src={imageSource}
+            alt={name || 'Avatar'}
+            onError={() => setImgError(true)}
+            className="w-full h-full object-cover rounded-full"
+            loading="lazy"
+          />
+        ) : (
+          <span>{initials}</span>
+        )}
       </div>
 
       {showNumber && jerseyNumber !== undefined && jerseyNumber !== null && (

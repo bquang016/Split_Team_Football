@@ -11,6 +11,7 @@ interface AuthState {
   logout: () => Promise<void>;
   quickLogin: (userId: string) => Promise<boolean>;
   checkAuth: () => Promise<void>;
+  updateUser: (user: User) => void;
   isAdmin: () => boolean;
   toggleAdminMode: () => void;
 }
@@ -85,6 +86,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       get().logout();
       set({ isLoading: false });
     }
+  },
+
+  updateUser: (user: User) => {
+    localStorage.setItem('user', JSON.stringify(user));
+    set({ user });
   },
 
   isAdmin: () => {

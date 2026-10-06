@@ -19,6 +19,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 // New pages
 import { MatchHistoryPage } from './pages/MatchHistoryPage';
 import { LineupPage } from './pages/LineupPage';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 export const App: React.FC = () => {
   const checkAuth = useAuthStore((state) => state.checkAuth);
@@ -29,14 +30,15 @@ export const App: React.FC = () => {
 
   return (
     <BrowserRouter>
-      <Toaster
+      <ErrorBoundary>
+        <Toaster
         position="top-right"
         toastOptions={{
           style: {
             background: '#FFFFFF',
             color: '#0F172A',
             border: '1px solid #E2E8F0',
-            fontFamily: '"Space Grotesk", sans-serif',
+            fontFamily: '"Plus Jakarta Sans", "Be Vietnam Pro", sans-serif',
             fontSize: '13px',
             borderRadius: '12px',
             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
@@ -92,6 +94,7 @@ export const App: React.FC = () => {
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 };

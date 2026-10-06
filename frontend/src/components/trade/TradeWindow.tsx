@@ -589,7 +589,7 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
             {teamAPlayers.map((p) => (
               <div key={p.id} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-xs font-space border border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                  <Avatar name={p.user.fullName} jerseyNumber={p.user.jerseyNumber} size="sm" showNumber />
+                  <Avatar name={p.user.fullName} src={p.user.avatarUrl} jerseyNumber={p.user.jerseyNumber} size="sm" showNumber />
                   <span className="font-bold text-slate-800 dark:text-slate-200">{p.user.fullName}</span>
                 </div>
                 {p.isHost && (
@@ -616,7 +616,7 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
             {teamBPlayers.map((p) => (
               <div key={p.id} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-xs font-space border border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                  <Avatar name={p.user.fullName} jerseyNumber={p.user.jerseyNumber} size="sm" showNumber />
+                  <Avatar name={p.user.fullName} src={p.user.avatarUrl} jerseyNumber={p.user.jerseyNumber} size="sm" showNumber />
                   <span className="font-bold text-slate-800 dark:text-slate-200">{p.user.fullName}</span>
                 </div>
                 {p.isHost && (

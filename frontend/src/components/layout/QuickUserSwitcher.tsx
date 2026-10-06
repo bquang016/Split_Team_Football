@@ -124,6 +124,7 @@ export const QuickUserSwitcher: React.FC = () => {
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Avatar
                         name={u.fullName}
+                        src={u.avatarUrl}
                         jerseyNumber={u.jerseyNumber}
                         size="sm"
                         showNumber

@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { User, UserRole, UserStatus } from '../types';
 import { adminService } from '../services/adminService';
+import { userService } from '../services/userService';
 import { Avatar, Badge, Button, Card, Input, Modal, Select } from '../ui';
 import toast from 'react-hot-toast';
 
@@ -15,6 +16,8 @@ export const AdminPage: React.FC = () => {
   const [editJerseyNumber, setEditJerseyNumber] = useState<number | undefined>();
   const [editRole, setEditRole] = useState<UserRole>('PLAYER');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [uploadingAdminAvatar, setUploadingAdminAvatar] = useState(false);
+  const adminFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -43,11 +46,12 @@ export const AdminPage: React.FC = () => {
         fetchUsers();
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Không thể phê duyệt');
+      toast.error(err.response?.data?.message || 'Lỗi khi phê duyệt');
     }
   };
 
   const handleBan = async (userId: string) => {
+    if (!window.confirm('Bạn có chắc chắn muốn khóa tài khoản này?')) return;
     try {
       const res = await adminService.banUser(userId);
       if (res.success) {
@@ -55,7 +59,7 @@ export const AdminPage: React.FC = () => {
         fetchUsers();
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Không thể khóa');
+      toast.error(err.response?.data?.message || 'Lỗi khi khóa tài khoản');
     }
   };
 
@@ -64,6 +68,60 @@ export const AdminPage: React.FC = () => {
     setEditFullName(u.fullName);
     setEditJerseyNumber(u.jerseyNumber);
     setEditRole(u.role);
+  };
+
+  const handleAdminAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingUser) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Kích thước ảnh không được vượt quá 5MB');
+      return;
+    }
+
+    setUploadingAdminAvatar(true);
+    const toastId = toast.loading('Đang tải ảnh lên Cloudflare R2...');
+
+    try {
+      const res = await userService.uploadUserAvatar(editingUser.id, file);
+      if (res.success && res.data) {
+        setEditingUser(res.data);
+        fetchUsers();
+        toast.success('Đã tải ảnh đại diện lên thành công!', { id: toastId });
+      } else {
+        toast.error(res.message || 'Lỗi tải ảnh', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Không thể tải ảnh lên', { id: toastId });
+    } finally {
+      setUploadingAdminAvatar(false);
+      if (adminFileInputRef.current) {
+        adminFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleAdminAvatarRemove = async () => {
+    if (!editingUser) return;
+    if (!window.confirm('Bạn có chắc chắn muốn xóa ảnh đại diện của người này?')) return;
+
+    setUploadingAdminAvatar(true);
+    const toastId = toast.loading('Đang xóa ảnh đại diện...');
+
+    try {
+      const res = await userService.removeUserAvatar(editingUser.id);
+      if (res.success && res.data) {
+        setEditingUser(res.data);
+        fetchUsers();
+        toast.success('Đã xóa ảnh đại diện thành công!', { id: toastId });
+      } else {
+        toast.error(res.message || 'Lỗi xóa ảnh', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Không thể xóa ảnh', { id: toastId });
+    } finally {
+      setUploadingAdminAvatar(false);
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -89,63 +147,63 @@ export const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 max-w-6xl mx-auto font-sans">
-      <Card elevation="glass" glow className="!p-4 sm:!p-5 relative z-20">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-          <div>
-            <div className="flex items-center gap-2">
-              <Badge variant="primary" dot size="sm">
-                Duyệt người dùng
-              </Badge>
-              <span className="text-[11px] text-slate-400 font-space font-medium">Ban Cán Sự CLB</span>
-            </div>
-            <h1 className="font-space font-black text-lg sm:text-xl text-slate-900 dark:text-white mt-1 tracking-tight">
-              Duyệt Người Dùng
-            </h1>
-            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Phê duyệt thành viên mới, phân quyền và quản lý tài khoản người dùng
-            </p>
-          </div>
-
-          <div className="w-48">
-            <Select
-              options={[
-                { value: 'PENDING', label: 'Chờ phê duyệt (Pending)' },
-                { value: 'ACTIVE', label: 'Đang hoạt động (Active)' },
-                { value: 'BANNED', label: 'Đã khóa (Banned)' },
-                { value: 'ALL', label: 'Tất cả trạng thái' },
-              ]}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            />
-          </div>
+    <div className="flex flex-col gap-6 max-w-6xl mx-auto font-sans">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-space font-black text-2xl text-slate-900 dark:text-white">
+            Quản Trị Thành Viên
+          </h1>
+          <p className="text-xs font-space text-slate-600 dark:text-slate-400 mt-1">
+            Phê duyệt tài khoản đăng ký, phân quyền vai trò và quản lý ảnh đại diện lưu trữ R2
+          </p>
         </div>
-      </Card>
 
-      <Card elevation="level1" className="p-0 overflow-hidden">
+        {/* Filter status */}
+        <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-fit">
+          {['PENDING', 'ACTIVE', 'BANNED', 'ALL'].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-space font-bold transition-all ${
+                statusFilter === s
+                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              {s === 'PENDING' && 'Chờ duyệt'}
+              {s === 'ACTIVE' && 'Hoạt động'}
+              {s === 'BANNED' && 'Bị khóa'}
+              {s === 'ALL' && 'Tất cả'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Users table card */}
+      <Card elevation="level1" className="overflow-hidden p-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left text-sm font-space">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-space font-bold uppercase text-slate-400 bg-slate-100/50 dark:bg-slate-900/50">
-                <th className="py-2.5 px-3">Cầu thủ</th>
-                <th className="py-2.5 px-3">Tên đăng nhập</th>
-                <th className="py-2.5 px-3 text-center">Số áo</th>
-                <th className="py-2.5 px-3">Vai trò</th>
-                <th className="py-2.5 px-3">Trạng thái</th>
-                <th className="py-2.5 px-3 text-right">Thao tác</th>
+              <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800/50">
+                <th className="py-3 px-4">Cầu thủ</th>
+                <th className="py-3 px-4">Tài khoản</th>
+                <th className="py-3 px-4 text-center">Số áo</th>
+                <th className="py-3 px-4">Vai trò</th>
+                <th className="py-3 px-4">Trạng thái</th>
+                <th className="py-3 px-4 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs font-space">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <td colSpan={6} className="py-8 text-center text-slate-500">
                     Đang tải danh sách...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400 italic">
-                    Không có người dùng nào trong danh sách
+                  <td colSpan={6} className="py-8 text-center text-slate-500 italic">
+                    Không có thành viên nào phù hợp bộ lọc
                   </td>
                 </tr>
               ) : (
@@ -156,7 +214,13 @@ export const AdminPage: React.FC = () => {
                   >
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
-                        <Avatar name={u.fullName} jerseyNumber={u.jerseyNumber} size="sm" showNumber />
+                        <Avatar
+                          name={u.fullName}
+                          src={u.avatarUrl}
+                          jerseyNumber={u.jerseyNumber}
+                          size="sm"
+                          showNumber
+                        />
                         <span className="font-bold text-slate-900 dark:text-white">{u.fullName}</span>
                       </div>
                     </td>
@@ -223,6 +287,51 @@ export const AdminPage: React.FC = () => {
       {/* Edit User Modal */}
       <Modal isOpen={!!editingUser} onClose={() => setEditingUser(null)} title="Sửa thông tin người dùng">
         <div className="flex flex-col gap-4 font-sans">
+          {/* Avatar manager inside modal */}
+          <div className="flex items-center gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+            <Avatar
+              name={editFullName || editingUser?.fullName}
+              src={editingUser?.avatarUrl}
+              jerseyNumber={editJerseyNumber}
+              size="lg"
+              showNumber
+            />
+            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+              <span className="text-xs font-bold font-space text-slate-700 dark:text-slate-300">
+                Ảnh đại diện (Cloudflare R2)
+              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="file"
+                  ref={adminFileInputRef}
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleAdminAvatarUpload}
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  leftIcon="upload"
+                  isLoading={uploadingAdminAvatar}
+                  onClick={() => adminFileInputRef.current?.click()}
+                >
+                  Tải ảnh mới
+                </Button>
+                {editingUser?.avatarUrl && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    leftIcon="delete"
+                    isLoading={uploadingAdminAvatar}
+                    onClick={handleAdminAvatarRemove}
+                  >
+                    Xóa ảnh
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <Input
             label="Họ và tên"
             value={editFullName}

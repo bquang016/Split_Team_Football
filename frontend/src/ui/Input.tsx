@@ -24,9 +24,23 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {label}
           </label>
         )}
-        <div className="relative flex items-center border-b-2 border-slate-300 dark:border-slate-700/80 focus-within:border-emerald-500 dark:focus-within:border-emerald-400 transition-colors pb-0.5">
+        <div
+          className={clsx(
+            'relative flex items-center border-b-2 transition-colors pb-0.5',
+            error
+              ? 'border-rose-500 dark:border-rose-500'
+              : 'border-slate-300 dark:border-slate-700/80 focus-within:border-emerald-500 dark:focus-within:border-emerald-400'
+          )}
+        >
           {leftIcon && (
-            <span className="material-symbols-outlined text-slate-400 dark:text-slate-500 text-[20px] mr-2 pointer-events-none group-focus-within:text-emerald-500 transition-colors">
+            <span
+              className={clsx(
+                'material-symbols-outlined text-[20px] mr-2 pointer-events-none transition-colors',
+                error
+                  ? 'text-rose-500'
+                  : 'text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-500'
+              )}
+            >
               {leftIcon}
             </span>
           )}

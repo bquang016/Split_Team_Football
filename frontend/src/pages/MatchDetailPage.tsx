@@ -8,6 +8,7 @@ import { pickService } from '../services/pickService';
 import { lineupService } from '../services/lineupService';
 import { statsService, PlayerStatInput } from '../services/statsService';
 import { adminService } from '../services/adminService';
+import { authService } from '../services/authService';
 import { useAuthStore } from '../store/authStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { Avatar, Badge, Button, Card, Breadcrumbs, Tabs, Select } from '../ui';
@@ -22,6 +23,7 @@ import { PickList } from '../components/pick/PickList';
 import { TradeWindow } from '../components/trade/TradeWindow';
 import { AIAnalysisCard } from '../components/ai/AIAnalysisCard';
 import { FootballPitch } from '../components/lineup/FootballPitch';
+import { PostMatchStatsTab } from '../components/match/PostMatchStatsTab';
 import { formatDateVi, formatTimeVi } from '../utils/formatters';
 import {
   TEAM_A_NAME,
@@ -66,6 +68,7 @@ export const MatchDetailPage: React.FC = () => {
   // Guest Player state
   const [guestFullName, setGuestFullName] = useState('');
   const [guestJerseyNumber, setGuestJerseyNumber] = useState('');
+  const [guestJerseyError, setGuestJerseyError] = useState('');
   const [guestSubmitting, setGuestSubmitting] = useState(false);
 
   // Tactical Pitch in MatchDetailPage
@@ -78,7 +81,7 @@ export const MatchDetailPage: React.FC = () => {
 
   // Stats state
   const [playerStatsInputs, setPlayerStatsInputs] = useState<
-    Record<string, { goals: number; assists: number; saves: number; isMvp: boolean }>
+    Record<string, { goals: number; assists: number; saves: number; isMvp: boolean; rating?: number | null }>
   >({});
   const [savingStats, setSavingStats] = useState(false);
 
@@ -88,6 +91,45 @@ export const MatchDetailPage: React.FC = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingMatch, setDeletingMatch] = useState(false);
   const subscribe = useWebSocketStore((state) => state.subscribe);
+
+  // Debounced check for guest jersey number availability
+  useEffect(() => {
+    if (!isAssignModalOpen || assignModalTab !== 'guest') {
+      setGuestJerseyError('');
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const val = guestJerseyNumber.trim();
+      if (!val) {
+        setGuestJerseyError('');
+        return;
+      }
+      const jNum = Number(val);
+      if (isNaN(jNum) || jNum < 1 || jNum > 99) {
+        setGuestJerseyError('Số áo phải từ 1 đến 99');
+        return;
+      }
+
+      try {
+        const res = await authService.checkAvailability({
+          jerseyNumber: jNum,
+          forGuest: true,
+        });
+        if (res.success && res.data) {
+          if (!res.data.jerseyNumberAvailable) {
+            setGuestJerseyError(res.data.jerseyNumberError || 'Số áo đã có người trong hệ thống sử dụng');
+          } else {
+            setGuestJerseyError('');
+          }
+        }
+      } catch {
+        // Silently skip
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [isAssignModalOpen, assignModalTab, guestJerseyNumber]);
 
   const handleDeleteMatch = async () => {
     if (!match) return;
@@ -239,6 +281,86 @@ export const MatchDetailPage: React.FC = () => {
     setHasInitializedTab(true);
   }, [match, hasInitializedTab]);
 
+  // Synchronize player stats inputs from saved database records or live match goals
+  useEffect(() => {
+    if (!match?.id) return;
+
+    const syncPlayerStats = async () => {
+      try {
+        const res = await statsService.getMatchStats(match.id);
+        const statsMap: Record<string, { goals: number; assists: number; saves: number; isMvp: boolean; rating?: number | null }> = {};
+
+        // 1. Map existing saved player stats from database
+        if (res.success && res.data && res.data.length > 0) {
+          res.data.forEach((st) => {
+            if (st.user?.id) {
+              statsMap[st.user.id] = {
+                goals: st.goals ?? 0,
+                assists: st.assists ?? 0,
+                saves: st.saves ?? 0,
+                isMvp: Boolean(st.isMvp),
+                rating: st.rating != null ? Number(st.rating) : null,
+              };
+            }
+          });
+        }
+
+        // 2. Compute live goals & assists from match.goals for each participant
+        (match.participants || []).forEach((p) => {
+          if (!p.user?.id) return;
+          const liveGoals = (match.goals || [])
+            .filter((g) => g.scorer?.id === p.user.id)
+            .reduce((sum, g) => sum + (g.goalCount || 1), 0);
+          const liveAssists = (match.goals || [])
+            .filter((g) => g.assist?.id === p.user.id)
+            .length;
+
+          if (!statsMap[p.user.id]) {
+            statsMap[p.user.id] = {
+              goals: liveGoals,
+              assists: liveAssists,
+              saves: 0,
+              isMvp: false,
+              rating: null,
+            };
+          } else {
+            // If live goals exist and saved was 0, sync from live events
+            if (liveGoals > 0 && statsMap[p.user.id].goals === 0) {
+              statsMap[p.user.id].goals = liveGoals;
+            }
+            if (liveAssists > 0 && statsMap[p.user.id].assists === 0) {
+              statsMap[p.user.id].assists = liveAssists;
+            }
+          }
+        });
+
+        setPlayerStatsInputs(statsMap);
+      } catch {
+        // Fallback directly to match.goals
+        const statsMap: Record<string, { goals: number; assists: number; saves: number; isMvp: boolean; rating?: number | null }> = {};
+        (match.participants || []).forEach((p) => {
+          if (!p.user?.id) return;
+          const liveGoals = (match.goals || [])
+            .filter((g) => g.scorer?.id === p.user.id)
+            .reduce((sum, g) => sum + (g.goalCount || 1), 0);
+          const liveAssists = (match.goals || [])
+            .filter((g) => g.assist?.id === p.user.id)
+            .length;
+          statsMap[p.user.id] = {
+            goals: liveGoals,
+            assists: liveAssists,
+            saves: 0,
+            isMvp: false,
+            rating: null,
+          };
+        });
+        setPlayerStatsInputs(statsMap);
+      }
+    };
+
+    syncPlayerStats();
+  }, [match?.id, match?.goals, match?.status]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -260,13 +382,13 @@ export const MatchDetailPage: React.FC = () => {
   }
 
   const participants = match.participants || [];
-  const hostAUser = participants.find((p) => p.user.id === hostAId)?.user || match.spinSession?.hostA;
-  const hostBUser = participants.find((p) => p.user.id === hostBId)?.user || match.spinSession?.hostB;
+  const hostAUser = participants.find((p) => p.user?.id === hostAId)?.user || match.spinSession?.hostA;
+  const hostBUser = participants.find((p) => p.user?.id === hostBId)?.user || match.spinSession?.hostB;
   const winnerUser = match.spinSession?.winner;
 
   // Captaincy & permissions
-  const isCaptainA = participants.some((p) => p.user.id === user?.id && p.isHost && p.team === 'A');
-  const isCaptainB = participants.some((p) => p.user.id === user?.id && p.isHost && p.team === 'B');
+  const isCaptainA = participants.some((p) => p.user?.id === user?.id && p.isHost && p.team === 'A');
+  const isCaptainB = participants.some((p) => p.user?.id === user?.id && p.isHost && p.team === 'B');
   const isCaptain = isCaptainA || isCaptainB;
   const isWinnerCaptain = winnerUser && user?.id === winnerUser.id;
   const canSelectJersey = adminActive || Boolean(isWinnerCaptain);
@@ -297,10 +419,10 @@ export const MatchDetailPage: React.FC = () => {
   const teamBLineups = localLineups.filter((l) => l.team === 'B');
 
   const teamABenchPlayers = teamAParticipants.filter(
-    (p) => !teamALineups.some((l) => l.user.id === p.user.id)
+    (p) => !teamALineups.some((l) => l.user?.id === p.user?.id)
   );
   const teamBBenchPlayers = teamBParticipants.filter(
-    (p) => !teamBLineups.some((l) => l.user.id === p.user.id)
+    (p) => !teamBLineups.some((l) => l.user?.id === p.user?.id)
   );
 
   const captainAParticipant = teamAParticipants.find((p) => p.isHost);
@@ -308,7 +430,7 @@ export const MatchDetailPage: React.FC = () => {
 
   const canEdit = (team: Team) => {
     if (adminActive) return true;
-    const myParticipant = participants.find((p) => p.user.id === user?.id);
+    const myParticipant = participants.find((p) => p.user?.id === user?.id);
     return Boolean(myParticipant?.isHost && myParticipant?.team === team);
   };
   const canEditTeamA = canEdit('A');
@@ -329,29 +451,30 @@ export const MatchDetailPage: React.FC = () => {
 
     const selectedPlayers: typeof allTeamParticipants = [];
     existingTeamStarters.forEach((st) => {
-      const found = allTeamParticipants.find((p) => p.user.id === st.user.id);
-      if (found && !selectedPlayers.some((sp) => sp.user.id === found.user.id)) {
+      const found = allTeamParticipants.find((p) => p.user?.id === st.user?.id);
+      if (found && !selectedPlayers.some((sp) => sp.user?.id === found.user?.id)) {
         selectedPlayers.push(found);
       }
     });
 
     allTeamParticipants.forEach((p) => {
-      if (selectedPlayers.length < 7 && !selectedPlayers.some((sp) => sp.user.id === p.user.id)) {
+      if (selectedPlayers.length < 7 && !selectedPlayers.some((sp) => sp.user?.id === p.user?.id)) {
         selectedPlayers.push(p);
       }
     });
 
     const newTeamLineups: MatchLineup[] = selectedPlayers.slice(0, 7).map((p, idx) => {
       const pos = preset.positions[idx] || { position: 'CM', x: 50, y: 50 };
+      const pUserId = p.user?.id || `pos-${idx}`;
       return {
-        id: `lineup-${p.user.id}`,
+        id: `lineup-${pUserId}`,
         matchId: match.id,
         user: p.user,
         team: tacticsActiveTeam,
         positionLabel: pos.position as Position,
         xPercent: pos.x,
         yPercent: pos.y,
-        jerseyNumber: p.jerseyNumber ?? p.user.jerseyNumber,
+        jerseyNumber: p.jerseyNumber ?? p.user?.jerseyNumber,
       };
     });
 
@@ -400,7 +523,7 @@ export const MatchDetailPage: React.FC = () => {
     }
   };
 
-  const hasJoined = participants.some((p) => p.user.id === user?.id);
+  const hasJoined = participants.some((p) => p.user?.id === user?.id);
 
   // Stats eligibility: Match is COMPLETED OR 2 hours passed since start
   const matchDateTime = match.matchTime ? new Date(`${match.matchDate}T${match.matchTime}`) : new Date(match.matchDate);
@@ -471,16 +594,26 @@ export const MatchDetailPage: React.FC = () => {
       toast.error('Vui lòng nhập họ và tên cầu thủ khách');
       return;
     }
+    const jNum = Number(guestJerseyNumber);
+    if (!guestJerseyNumber || isNaN(jNum) || jNum < 1 || jNum > 99) {
+      toast.error('Vui lòng chọn số áo cho cầu thủ khách trong khoảng từ 1 đến 99');
+      return;
+    }
+    if (guestJerseyError) {
+      toast.error(guestJerseyError);
+      return;
+    }
     setGuestSubmitting(true);
     try {
       const res = await matchService.addGuestParticipant(match.id, {
         fullName: guestFullName.trim(),
-        jerseyNumber: guestJerseyNumber ? Number(guestJerseyNumber) : undefined,
+        jerseyNumber: jNum,
       });
       if (res.success) {
-        toast.success(`Đã thêm cầu thủ khách "${guestFullName.trim()}" vào trận đấu!`);
+        toast.success(`Đã thêm cầu thủ khách "${guestFullName.trim()}" (Số áo ${jNum}) vào trận đấu!`);
         setGuestFullName('');
         setGuestJerseyNumber('');
+        setGuestJerseyError('');
         setIsAssignModalOpen(false);
         fetchMatch();
       }
@@ -583,22 +716,28 @@ export const MatchDetailPage: React.FC = () => {
   const handleSaveStats = async () => {
     setSavingStats(true);
     try {
-      const statsPayload: PlayerStatInput[] = participants.map((p) => {
-        const input = playerStatsInputs[p.user.id] || { goals: 0, assists: 0, saves: 0, isMvp: false };
-        const isWinner =
-          (match.scoreTeamA > match.scoreTeamB && p.team === 'A') ||
-          (match.scoreTeamB > match.scoreTeamA && p.team === 'B');
+      const statsPayload: PlayerStatInput[] = participants
+        .filter((p) => p.user?.id)
+        .map((p) => {
+          const input = playerStatsInputs[p.user.id] || { goals: 0, assists: 0, saves: 0, isMvp: false, rating: null };
+          const isWinner =
+            (match.scoreTeamA > match.scoreTeamB && p.team === 'A') ||
+            (match.scoreTeamB > match.scoreTeamA && p.team === 'B');
 
-        return {
-          userId: p.user.id,
-          team: p.team,
-          goals: input.goals || 0,
-          assists: input.assists || 0,
-          saves: input.saves || 0,
-          isWinner,
-          isMvp: input.isMvp || false,
-        };
-      });
+          return {
+            userId: p.user.id,
+            team: p.team,
+            goals: Number(input.goals) || 0,
+            assists: Number(input.assists) || 0,
+            saves: Number(input.saves) || 0,
+            rating:
+              input.rating !== undefined && input.rating !== null && !isNaN(Number(input.rating))
+                ? Number(input.rating)
+                : null,
+            isWinner,
+            isMvp: Boolean(input.isMvp),
+          };
+        });
 
       const res = await statsService.recordStats(match.id, statsPayload);
       if (res.success) {
@@ -723,9 +862,13 @@ export const MatchDetailPage: React.FC = () => {
                 {match.status === 'IN_PROGRESS' && (
                   <Button
                     size="sm"
-                    variant="primary"
-                    onClick={() => handleUpdateStatus('COMPLETED')}
-                    leftIcon="sports_score"
+                    variant="danger"
+                    onClick={() => {
+                      if (window.confirm('Bạn có chắc chắn muốn kết thúc trận đấu và chốt tỉ số để mở bảng thống kê sau trận?')) {
+                        handleUpdateStatus('COMPLETED');
+                      }
+                    }}
+                    leftIcon="stop_circle"
                   >
                     Kết thúc trận đấu
                   </Button>
@@ -815,17 +958,6 @@ export const MatchDetailPage: React.FC = () => {
                         onClick={() => handleUpdateStatus('IN_PROGRESS')}
                       >
                         Bắt đầu trận đấu
-                      </Button>
-                    )}
-
-                    {adminActive && match.status === 'IN_PROGRESS' && (
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        leftIcon="stop_circle"
-                        onClick={() => handleUpdateStatus('COMPLETED')}
-                      >
-                        Kết thúc trận đấu
                       </Button>
                     )}
                   </div>
@@ -988,7 +1120,7 @@ export const MatchDetailPage: React.FC = () => {
                     className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-xs"
                   >
                     <div className="flex items-center gap-3">
-                      <Avatar name={p.user.fullName} jerseyNumber={p.user.jerseyNumber} size="md" showNumber />
+                      <Avatar name={p.user.fullName} src={p.user.avatarUrl} jerseyNumber={p.user.jerseyNumber} size="md" showNumber />
                       <div>
                         <div className="font-heading font-black text-sm text-slate-900 dark:text-white">
                           {p.user.fullName}
@@ -1190,8 +1322,9 @@ export const MatchDetailPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <div className="relative">
                         <Avatar
-                          name={captainAParticipant.user.fullName}
-                          jerseyNumber={captainAParticipant.jerseyNumber ?? captainAParticipant.user.jerseyNumber}
+                          name={captainAParticipant.user?.fullName || 'Đội trưởng'}
+                          src={captainAParticipant.user?.avatarUrl}
+                          jerseyNumber={captainAParticipant.jerseyNumber ?? captainAParticipant.user?.jerseyNumber}
                           size="md"
                           showNumber
                         />
@@ -1205,14 +1338,14 @@ export const MatchDetailPage: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-space font-black text-sm text-slate-900 dark:text-white">
-                            {captainAParticipant.user.fullName}
+                            {captainAParticipant.user?.fullName || 'Đội trưởng'}
                           </span>
                           <Badge variant="gold" size="sm">
                             ĐỘI TRƯỞNG
                           </Badge>
                         </div>
                         <span className="text-xs text-slate-500 font-mono">
-                          Số áo #{captainAParticipant.jerseyNumber ?? captainAParticipant.user.jerseyNumber ?? 'C'}
+                          Số áo #{captainAParticipant.jerseyNumber ?? captainAParticipant.user?.jerseyNumber ?? 'C'}
                         </span>
                       </div>
                     </div>
@@ -1233,22 +1366,23 @@ export const MatchDetailPage: React.FC = () => {
                     <div className="flex flex-col gap-1.5">
                       {teamALineups.map((l) => (
                         <div
-                          key={l.user.id}
+                          key={l.user?.id || l.id}
                           className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800"
                         >
                           <div className="flex items-center gap-2.5">
                             <Avatar
-                              name={l.user.fullName}
-                              jerseyNumber={l.jerseyNumber ?? l.user.jerseyNumber}
+                              name={l.user?.fullName || 'Cầu thủ'}
+                              src={l.user?.avatarUrl}
+                              jerseyNumber={l.jerseyNumber ?? l.user?.jerseyNumber}
                               size="sm"
                               showNumber
                             />
                             <div>
                               <div className="flex items-center gap-1.5">
                                 <span className="font-space font-bold text-xs text-slate-900 dark:text-white">
-                                  {l.user.fullName}
+                                  {l.user?.fullName || 'Cầu thủ'}
                                 </span>
-                                {l.user.role === 'GUEST' && (
+                                {l.user?.role === 'GUEST' && (
                                   <span className="px-1.5 py-0.5 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300 text-[10px] font-space font-bold border border-purple-500/30 inline-flex items-center gap-1">
                                     <span className="material-symbols-outlined text-[11px]">person_pin</span>
                                     Cầu thủ khách
@@ -1280,21 +1414,22 @@ export const MatchDetailPage: React.FC = () => {
                     <div className="flex flex-col gap-1.5">
                       {teamABenchPlayers.map((p) => (
                         <div
-                          key={p.user.id}
+                          key={p.user?.id || p.id}
                           className="flex items-center justify-between p-2 rounded-xl bg-slate-50/50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-slate-800/60"
                         >
                           <div className="flex items-center gap-2.5">
                             <Avatar
-                              name={p.user.fullName}
-                              jerseyNumber={p.jerseyNumber ?? p.user.jerseyNumber}
+                              name={p.user?.fullName || 'Cầu thủ'}
+                              src={p.user?.avatarUrl}
+                              jerseyNumber={p.jerseyNumber ?? p.user?.jerseyNumber}
                               size="sm"
                               showNumber
                             />
                             <div className="flex items-center gap-1.5">
                               <span className="font-space font-medium text-xs text-slate-700 dark:text-slate-300">
-                                {p.user.fullName}
+                                {p.user?.fullName || 'Cầu thủ'}
                               </span>
-                              {p.user.role === 'GUEST' && (
+                              {p.user?.role === 'GUEST' && (
                                 <span className="px-1.5 py-0.5 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300 text-[10px] font-space font-bold border border-purple-500/30 inline-flex items-center gap-1">
                                   <span className="material-symbols-outlined text-[11px]">person_pin</span>
                                   Cầu thủ khách
@@ -1303,7 +1438,7 @@ export const MatchDetailPage: React.FC = () => {
                             </div>
                           </div>
                           <span className="text-[11px] font-mono text-slate-400">
-                            #{p.jerseyNumber ?? p.user.jerseyNumber ?? '-'}
+                            #{p.jerseyNumber ?? p.user?.jerseyNumber ?? '-'}
                           </span>
                         </div>
                       ))}
@@ -1369,8 +1504,9 @@ export const MatchDetailPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <div className="relative">
                         <Avatar
-                          name={captainBParticipant.user.fullName}
-                          jerseyNumber={captainBParticipant.jerseyNumber ?? captainBParticipant.user.jerseyNumber}
+                          name={captainBParticipant.user?.fullName || 'Đội trưởng'}
+                          src={captainBParticipant.user?.avatarUrl}
+                          jerseyNumber={captainBParticipant.jerseyNumber ?? captainBParticipant.user?.jerseyNumber}
                           size="md"
                           showNumber
                         />
@@ -1384,14 +1520,14 @@ export const MatchDetailPage: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-space font-black text-sm text-slate-900 dark:text-white">
-                            {captainBParticipant.user.fullName}
+                            {captainBParticipant.user?.fullName || 'Đội trưởng'}
                           </span>
                           <Badge variant="gold" size="sm">
                             ĐỘI TRƯỞNG
                           </Badge>
                         </div>
                         <span className="text-xs text-slate-500 font-mono">
-                          Số áo #{captainBParticipant.jerseyNumber ?? captainBParticipant.user.jerseyNumber ?? 'C'}
+                          Số áo #{captainBParticipant.jerseyNumber ?? captainBParticipant.user?.jerseyNumber ?? 'C'}
                         </span>
                       </div>
                     </div>
@@ -1412,22 +1548,23 @@ export const MatchDetailPage: React.FC = () => {
                     <div className="flex flex-col gap-1.5">
                       {teamBLineups.map((l) => (
                         <div
-                          key={l.user.id}
+                          key={l.user?.id || l.id}
                           className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800"
                         >
                           <div className="flex items-center gap-2.5">
                             <Avatar
-                              name={l.user.fullName}
-                              jerseyNumber={l.jerseyNumber ?? l.user.jerseyNumber}
+                              name={l.user?.fullName || 'Cầu thủ'}
+                              src={l.user?.avatarUrl}
+                              jerseyNumber={l.jerseyNumber ?? l.user?.jerseyNumber}
                               size="sm"
                               showNumber
                             />
                             <div>
                               <div className="flex items-center gap-1.5">
                                 <span className="font-space font-bold text-xs text-slate-900 dark:text-white">
-                                  {l.user.fullName}
+                                  {l.user?.fullName || 'Cầu thủ'}
                                 </span>
-                                {l.user.role === 'GUEST' && (
+                                {l.user?.role === 'GUEST' && (
                                   <span className="px-1.5 py-0.5 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300 text-[10px] font-space font-bold border border-purple-500/30 inline-flex items-center gap-1">
                                     <span className="material-symbols-outlined text-[11px]">person_pin</span>
                                     Cầu thủ khách
@@ -1459,21 +1596,22 @@ export const MatchDetailPage: React.FC = () => {
                     <div className="flex flex-col gap-1.5">
                       {teamBBenchPlayers.map((p) => (
                         <div
-                          key={p.user.id}
+                          key={p.user?.id || p.id}
                           className="flex items-center justify-between p-2 rounded-xl bg-slate-50/50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-slate-800/60"
                         >
                           <div className="flex items-center gap-2.5">
                             <Avatar
-                              name={p.user.fullName}
-                              jerseyNumber={p.jerseyNumber ?? p.user.jerseyNumber}
+                              name={p.user?.fullName || 'Cầu thủ'}
+                              src={p.user?.avatarUrl}
+                              jerseyNumber={p.jerseyNumber ?? p.user?.jerseyNumber}
                               size="sm"
                               showNumber
                             />
                             <div className="flex items-center gap-1.5">
                               <span className="font-space font-medium text-xs text-slate-700 dark:text-slate-300">
-                                {p.user.fullName}
+                                {p.user?.fullName || 'Cầu thủ'}
                               </span>
-                              {p.user.role === 'GUEST' && (
+                              {p.user?.role === 'GUEST' && (
                                 <span className="px-1.5 py-0.5 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300 text-[10px] font-space font-bold border border-purple-500/30 inline-flex items-center gap-1">
                                   <span className="material-symbols-outlined text-[11px]">person_pin</span>
                                   Cầu thủ khách
@@ -1482,7 +1620,7 @@ export const MatchDetailPage: React.FC = () => {
                             </div>
                           </div>
                           <span className="text-[11px] font-mono text-slate-400">
-                            #{p.jerseyNumber ?? p.user.jerseyNumber ?? '-'}
+                            #{p.jerseyNumber ?? p.user?.jerseyNumber ?? '-'}
                           </span>
                         </div>
                       ))}
@@ -1623,191 +1761,19 @@ export const MatchDetailPage: React.FC = () => {
 
       {/* THỐNG KÊ SAU TRẬN */}
       {activeTab === 'stats' && (
-        <Card elevation="level1" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div>
-              <h3 className="font-heading font-black text-lg text-slate-900 dark:text-white">
-                Thống Kê Sau Trận Đấu
-              </h3>
-              <p className="text-xs text-slate-500 font-mono mt-0.5">
-                Nhập số bàn thắng, kiến tạo, cứu thua và chọn cầu thủ xuất sắc nhất (MVP) sau khi trận đấu kết thúc
-              </p>
-            </div>
-
-            {adminActive && isStatsEligible && (
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon="save"
-                isLoading={savingStats}
-                onClick={handleSaveStats}
-              >
-                Lưu thống kê & Cập nhật BXH
-              </Button>
-            )}
-          </div>
-
-          {!isStatsEligible ? (
-            <div className="p-8 text-center bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-3">
-                <span className="material-symbols-outlined text-2xl">lock_clock</span>
-              </div>
-              <h4 className="font-space font-black text-base text-slate-900 dark:text-white mb-1">
-                Tính Năng Thống Kê Chưa Mở
-              </h4>
-              <p className="text-xs text-slate-500 max-w-md mx-auto mb-4">
-                Trận đấu diễn ra khoảng 2 tiếng. Tính năng nhập thống kê chỉ mở sau 2 tiếng kể từ khi bắt đầu trận đấu hoặc sau khi ADMIN bấm <strong>"Kết thúc trận đấu"</strong>.
-              </p>
-              {adminActive && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  leftIcon="sports_score"
-                  onClick={() => handleUpdateStatus('COMPLETED')}
-                >
-                  Kết thúc trận đấu & Mở nhập thống kê ngay
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-space">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 font-bold text-slate-500 uppercase bg-slate-50/60 dark:bg-slate-900/60">
-                    <th className="py-2.5 px-3">Cầu thủ</th>
-                    <th className="py-2.5 px-3">Đội</th>
-                    <th className="py-2.5 px-3 text-center">Bàn thắng</th>
-                    <th className="py-2.5 px-3 text-center">Kiến tạo</th>
-                    <th className="py-2.5 px-3 text-center">Cứu thua</th>
-                    <th className="py-2.5 px-3 text-center">Cầu thủ xuất sắc (MVP)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {participants.map((p) => {
-                    const currentInput = playerStatsInputs[p.user.id] || {
-                      goals: 0,
-                      assists: 0,
-                      saves: 0,
-                      isMvp: false,
-                    };
-
-                    return (
-                      <tr key={p.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/50 transition-colors">
-                        <td className="py-3 px-3">
-                          <div className="flex items-center gap-2">
-                            <Avatar name={p.user.fullName} jerseyNumber={p.user.jerseyNumber} size="sm" showNumber />
-                            <span className="font-bold text-slate-900 dark:text-white">{p.user.fullName}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-3 font-mono font-bold">
-                          {p.team === 'A' ? (
-                            <span className="text-rose-600 font-bold">{TEAM_A_NAME}</span>
-                          ) : p.team === 'B' ? (
-                            <span className="text-blue-600 font-bold">{TEAM_B_NAME}</span>
-                          ) : (
-                            <span className="text-slate-500">Dự bị</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          {adminActive ? (
-                            <input
-                              type="number"
-                              min={0}
-                              className="w-16 px-2 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-center font-mono font-bold text-rose-600 focus:outline-none focus:border-rose-500"
-                              value={currentInput.goals}
-                              onChange={(e) =>
-                                setPlayerStatsInputs((prev) => ({
-                                 ...prev,
-                                  [p.user.id]: {
-                                    ...currentInput,
-                                    goals: Number(e.target.value),
-                                  },
-                                }))
-                              }
-                            />
-                          ) : (
-                            <span className="font-mono font-bold text-rose-600">{currentInput.goals}</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          {adminActive ? (
-                            <input
-                              type="number"
-                              min={0}
-                              className="w-16 px-2 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-center font-mono font-bold text-blue-600 focus:outline-none focus:border-blue-500"
-                              value={currentInput.assists}
-                              onChange={(e) =>
-                                setPlayerStatsInputs((prev) => ({
-                                  ...prev,
-                                  [p.user.id]: {
-                                    ...currentInput,
-                                    assists: Number(e.target.value),
-                                  },
-                                }))
-                              }
-                            />
-                          ) : (
-                            <span className="font-mono font-bold text-blue-600">{currentInput.assists}</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          {adminActive ? (
-                            <input
-                              type="number"
-                              min={0}
-                              className="w-16 px-2 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-center font-mono font-bold text-emerald-600 focus:outline-none focus:border-emerald-500"
-                              value={currentInput.saves}
-                              onChange={(e) =>
-                                setPlayerStatsInputs((prev) => ({
-                                  ...prev,
-                                  [p.user.id]: {
-                                    ...currentInput,
-                                    saves: Number(e.target.value),
-                                  },
-                                }))
-                              }
-                            />
-                          ) : (
-                            <span className="font-mono font-bold text-emerald-600">{currentInput.saves}</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          {adminActive ? (
-                            <input
-                              type="checkbox"
-                              className="w-4 h-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400 cursor-pointer"
-                              checked={currentInput.isMvp}
-                              onChange={(e) =>
-                                setPlayerStatsInputs((prev) => ({
-                                  ...prev,
-                                  [p.user.id]: {
-                                    ...currentInput,
-                                    isMvp: e.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                          ) : (
-                            <span className="font-bold text-amber-600 dark:text-amber-400 inline-flex items-center gap-1">
-                              {currentInput.isMvp ? (
-                                <>
-                                  <span className="material-symbols-outlined text-sm">star</span>
-                                  MVP
-                                </>
-                              ) : (
-                                '-'
-                              )}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
+        <PostMatchStatsTab
+          match={match}
+          participants={participants}
+          teamALabel={teamALabel}
+          teamBLabel={teamBLabel}
+          adminActive={adminActive}
+          isStatsEligible={isStatsEligible}
+          playerStatsInputs={playerStatsInputs}
+          setPlayerStatsInputs={setPlayerStatsInputs}
+          savingStats={savingStats}
+          onSaveStats={handleSaveStats}
+          onEndMatch={() => handleUpdateStatus('COMPLETED')}
+        />
       )}
 
       {/* Score Modal (Portaled) */}
@@ -1951,7 +1917,7 @@ export const MatchDetailPage: React.FC = () => {
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-space font-bold text-slate-700 dark:text-slate-300">
-                      Số áo thi đấu (tùy chọn)
+                      Số áo thi đấu chính thức <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="number"
@@ -1960,8 +1926,20 @@ export const MatchDetailPage: React.FC = () => {
                       placeholder="Ví dụ: 19"
                       value={guestJerseyNumber}
                       onChange={(e) => setGuestJerseyNumber(e.target.value)}
-                      className="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-space text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-purple-500"
+                      className={`px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs sm:text-sm font-space text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none transition-colors ${
+                        guestJerseyError
+                          ? 'border-rose-500 focus:border-rose-500 text-rose-500'
+                          : 'border-slate-200 dark:border-slate-700 focus:border-purple-500'
+                      }`}
+                      required
                     />
+                    {guestJerseyError ? (
+                      <span className="text-xs text-rose-500 font-semibold">{guestJerseyError}</span>
+                    ) : (
+                      <span className="text-[11px] text-slate-400 font-space leading-relaxed">
+                        Bắt buộc từ 1–99. Số áo này không được trùng với bất kỳ ai trong hệ thống (nhưng có thể bị người dùng thật chiếm lại).
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800 mt-auto">
@@ -2072,6 +2050,7 @@ export const MatchDetailPage: React.FC = () => {
 
                               <Avatar
                                 name={u.fullName}
+                                src={u.avatarUrl}
                                 jerseyNumber={u.jerseyNumber}
                                 size="sm"
                                 showNumber

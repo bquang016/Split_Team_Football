@@ -31,6 +31,7 @@ public class StatsService {
     private final MatchRepository matchRepository;
     private final UserRepository userRepository;
     private final LeaderboardService leaderboardService;
+    private final com.chimmoccanh.footballsquad.repository.MatchGoalRepository matchGoalRepository;
 
     @Transactional
     public List<PlayerStatsDto> recordStats(UUID matchId, RecordStatsRequest request, User admin) {
@@ -53,6 +54,9 @@ public class StatsService {
             throw new BadRequestException("Không thể nhập thống kê trước khi trận đấu kết thúc (sau 2 tiếng kể từ khi bắt đầu)");
         }
 
+        boolean hasLiveGoals = !matchGoalRepository.findByMatchIdOrderByMinuteAscCreatedAtAsc(matchId).isEmpty();
+        int totalGoalsTeamA = 0;
+        int totalGoalsTeamB = 0;
         List<PlayerStats> savedStatsList = new ArrayList<>();
 
         for (PlayerStatItemDto item : request.getStats()) {
@@ -68,14 +72,32 @@ public class StatsService {
             stat.setSaves(item.getSaves() != null ? item.getSaves() : 0);
             stat.setIsWinner(Boolean.TRUE.equals(item.getIsWinner()));
             stat.setIsMvp(Boolean.TRUE.equals(item.getIsMvp()));
+            if (item.getRating() != null) {
+                stat.setRating(Math.round(item.getRating() * 10.0) / 10.0);
+            } else {
+                stat.setRating(null);
+            }
             stat.setEnteredBy(admin);
             stat.setEnteredAt(now);
 
             PlayerStats saved = playerStatsRepository.save(stat);
             savedStatsList.add(saved);
 
+            if (item.getTeam() == com.chimmoccanh.footballsquad.model.enums.Team.A) {
+                totalGoalsTeamA += stat.getGoals();
+            } else if (item.getTeam() == com.chimmoccanh.footballsquad.model.enums.Team.B) {
+                totalGoalsTeamB += stat.getGoals();
+            }
+
             // Update user's aggregate stats in leaderboard_cache
             leaderboardService.updateUserStatsInLeaderboard(player.getId());
+        }
+
+        // Nếu trận đấu không có sự kiện live goals theo phút, đồng bộ tỉ số trận đấu theo tổng bàn thắng vừa nhập
+        if (!hasLiveGoals) {
+            match.setScoreTeamA(totalGoalsTeamA);
+            match.setScoreTeamB(totalGoalsTeamB);
+            matchRepository.save(match);
         }
 
         return savedStatsList.stream().map(PlayerStatsDto::fromEntity).collect(Collectors.toList());

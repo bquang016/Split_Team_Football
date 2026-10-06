@@ -42,3 +42,9 @@ app:
     team-a-name: "Tây Ban Nha"
     team-b-color: "#002395"
     team-b-name: "Pháp"
+  r2:
+    endpoint: ${R2_ENDPOINT:https://982674c869cf0001c1b93e4249e4c2fc.r2.cloudflarestorage.com}
+    bucket: ${R2_BUCKET:chimmoccanh}
+    public-url: ${R2_PUBLIC_URL:https://pub-2675187e64954989a4660b6ce9bbe2cb.r2.dev}
+    access-key-id: ${R2_ACCESS_KEY_ID:}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY:}

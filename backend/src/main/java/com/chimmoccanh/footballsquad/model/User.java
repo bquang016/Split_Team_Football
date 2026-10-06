@@ -36,6 +36,9 @@ public class User {
     @Column(name = "avatar_url", columnDefinition = "TEXT")
     private String avatarUrl;
 
+    @Column(name = "favorite_position", length = 50)
+    private String favoritePosition;
+
     @Column(unique = true, length = 150)
     private String email;
 

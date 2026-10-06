@@ -17,5 +17,6 @@ public interface MatchParticipantRepository extends JpaRepository<MatchParticipa
     Optional<MatchParticipant> findByMatchIdAndUserId(UUID matchId, UUID userId);
     boolean existsByMatchIdAndUserId(UUID matchId, UUID userId);
     void deleteByMatchIdAndUserId(UUID matchId, UUID userId);
+    List<MatchParticipant> findByUserId(UUID userId);
     List<MatchParticipant> findByMatchIdAndIsHostTrue(UUID matchId);
 }

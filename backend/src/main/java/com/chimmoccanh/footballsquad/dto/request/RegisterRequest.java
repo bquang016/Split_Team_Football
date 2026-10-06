@@ -18,6 +18,8 @@ public class RegisterRequest {
 
     private Integer jerseyNumber;
 
+    private String favoritePosition;
+
     @Email(message = "Email không đúng định dạng")
     private String email;
 

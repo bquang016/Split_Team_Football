@@ -393,7 +393,7 @@ export const PickList: React.FC<PickListProps> = ({
 
             <div className="flex items-center gap-3.5 mb-3">
               {captainA ? (
-                <Avatar name={captainA.fullName} jerseyNumber={captainA.jerseyNumber} size="lg" showNumber />
+                <Avatar name={captainA.fullName} src={captainA.avatarUrl} jerseyNumber={captainA.jerseyNumber} size="lg" showNumber />
               ) : (
                 <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
                   <span className="material-symbols-outlined">person</span>
@@ -609,7 +609,7 @@ export const PickList: React.FC<PickListProps> = ({
 
             <div className="flex items-center gap-3.5 mb-3">
               {captainB ? (
-                <Avatar name={captainB.fullName} jerseyNumber={captainB.jerseyNumber} size="lg" showNumber />
+                <Avatar name={captainB.fullName} src={captainB.avatarUrl} jerseyNumber={captainB.jerseyNumber} size="lg" showNumber />
               ) : (
                 <div className="w-12 h-12 rounded-2xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
                   <span className="material-symbols-outlined">person</span>
@@ -685,6 +685,7 @@ export const PickList: React.FC<PickListProps> = ({
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-700 flex items-center gap-4 w-full max-w-sm justify-center">
               <Avatar
                 name={availablePlayers[0].user.fullName}
+                src={availablePlayers[0].user.avatarUrl}
                 jerseyNumber={availablePlayers[0].user.jerseyNumber}
                 size="md"
                 showNumber

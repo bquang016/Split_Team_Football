@@ -1,11 +1,12 @@
 import api from './api';
-import { ApiResponse, AuthResponse, User } from '../types';
+import { ApiResponse, AuthResponse, CheckAvailabilityResult, User } from '../types';
 
 export const authService = {
   async register(data: {
     username: string;
     fullName: string;
     jerseyNumber?: number;
+    favoritePosition?: string;
     email?: string;
     password: string;
   }): Promise<ApiResponse<User>> {
@@ -35,6 +36,19 @@ export const authService = {
 
   async getQuickUsers(): Promise<ApiResponse<User[]>> {
     const res = await api.get<ApiResponse<User[]>>('/api/auth/quick-users');
+    return res.data;
+  },
+
+  async checkAvailability(params: {
+    username?: string;
+    email?: string;
+    jerseyNumber?: number;
+    excludeUserId?: string;
+    forGuest?: boolean;
+  }): Promise<ApiResponse<CheckAvailabilityResult>> {
+    const res = await api.get<ApiResponse<CheckAvailabilityResult>>('/api/auth/check-availability', {
+      params,
+    });
     return res.data;
   },
 };

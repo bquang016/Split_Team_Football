@@ -22,6 +22,7 @@ public class UserDto {
     private Integer jerseyNumber;
     private String avatarUrl;
     private String email;
+    private String favoritePosition;
     private UserRole role;
     private UserStatus status;
     private LocalDateTime createdAt;
@@ -35,6 +36,7 @@ public class UserDto {
                 .jerseyNumber(user.getJerseyNumber())
                 .avatarUrl(user.getAvatarUrl())
                 .email(user.getEmail())
+                .favoritePosition(user.getFavoritePosition())
                 .role(user.getRole())
                 .status(user.getStatus())
                 .createdAt(user.getCreatedAt())

@@ -27,7 +27,7 @@ public class DataInitializer implements CommandLineRunner {
             User admin = User.builder()
                     .username("admin")
                     .fullName("Quản Trị Viên")
-                    .jerseyNumber(10)
+                    .jerseyNumber(null)
                     .email("admin@chimmoccanh.com")
                     .passwordHash(passwordEncoder.encode("admin123"))
                     .role(UserRole.ADMIN)

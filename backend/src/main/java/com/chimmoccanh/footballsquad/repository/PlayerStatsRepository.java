@@ -39,4 +39,10 @@ public interface PlayerStatsRepository extends JpaRepository<PlayerStats, UUID> 
 
     @Query("SELECT COUNT(ps) FROM PlayerStats ps WHERE ps.user.id = :userId AND ps.match.isDeleted = false")
     int countMatchesByUserId(@Param("userId") UUID userId);
+
+    @Query("SELECT ps FROM PlayerStats ps JOIN FETCH ps.match m JOIN FETCH ps.user u " +
+           "WHERE m.isDeleted = false AND m.status = com.chimmoccanh.footballsquad.model.enums.MatchStatus.COMPLETED " +
+           "AND (CAST(:startDate AS date) IS NULL OR m.matchDate >= :startDate) " +
+           "AND (CAST(:endDate AS date) IS NULL OR m.matchDate <= :endDate)")
+    List<PlayerStats> findCompletedStatsBetweenDates(@Param("startDate") java.time.LocalDate startDate, @Param("endDate") java.time.LocalDate endDate);
 }

@@ -24,6 +24,7 @@ public class PlayerStatsDto {
     private Integer saves;
     private Boolean isWinner;
     private Boolean isMvp;
+    private Double rating;
     private UserDto enteredBy;
     private LocalDateTime enteredAt;
 
@@ -39,6 +40,7 @@ public class PlayerStatsDto {
                 .saves(stats.getSaves())
                 .isWinner(stats.getIsWinner())
                 .isMvp(stats.getIsMvp())
+                .rating(stats.getRating())
                 .enteredBy(UserDto.fromEntity(stats.getEnteredBy()))
                 .enteredAt(stats.getEnteredAt())
                 .build();

@@ -27,8 +27,10 @@ import com.chimmoccanh.footballsquad.repository.PlayerStatsRepository;
 import com.chimmoccanh.footballsquad.repository.SpinSessionRepository;
 import com.chimmoccanh.footballsquad.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +43,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MatchService {
@@ -95,7 +98,60 @@ public class MatchService {
         return dto;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
+    public Match checkAndAutoCompleteMatch(Match match) {
+        if (match.getStatus() != MatchStatus.IN_PROGRESS) {
+            return match;
+        }
+
+        LocalDateTime startTime = match.getStartAt() != null
+                ? match.getStartAt()
+                : (match.getMatchTime() != null
+                    ? LocalDateTime.of(match.getMatchDate(), match.getMatchTime())
+                    : match.getMatchDate().atStartOfDay());
+
+        if (startTime.plusHours(2).isBefore(LocalDateTime.now())) {
+            log.info("Trận đấu {} đã quá 2 tiếng (bắt đầu lúc {}). Tự động kết thúc (COMPLETED).", match.getId(), startTime);
+            match.setStatus(MatchStatus.COMPLETED);
+            if (match.getEndAt() == null) {
+                match.setEndAt(startTime.plusHours(2));
+            }
+            Match saved = matchRepository.save(match);
+            autoCreatePlayerStatsOnCompletion(saved);
+            cleanupGuestParticipants(saved.getId());
+            notificationService.broadcastMatchStatus(saved.getId(), MatchDto.fromEntity(saved));
+            return saved;
+        }
+        return match;
+    }
+
+    @Scheduled(fixedRate = 60000)
+    @Transactional
+    public void scheduleMatchLifecycleTransitions() {
+        // 1. Tự động chuyển TEAMS_SPLIT -> IN_PROGRESS khi đến giờ thi đấu
+        List<Match> splitMatches = matchRepository.findByIsDeletedFalseAndStatus(MatchStatus.TEAMS_SPLIT);
+        for (Match match : splitMatches) {
+            LocalDateTime scheduled = match.getMatchTime() != null
+                    ? LocalDateTime.of(match.getMatchDate(), match.getMatchTime())
+                    : match.getMatchDate().atStartOfDay();
+            if (!LocalDateTime.now().isBefore(scheduled)) {
+                match.setStatus(MatchStatus.IN_PROGRESS);
+                if (match.getStartAt() == null) {
+                    match.setStartAt(LocalDateTime.now());
+                }
+                Match saved = matchRepository.save(match);
+                notificationService.broadcastMatchStatus(saved.getId(), MatchDto.fromEntity(saved));
+            }
+        }
+
+        // 2. Tự động chuyển IN_PROGRESS -> COMPLETED khi trận đấu đủ 2 tiếng (120 phút)
+        List<Match> liveMatches = matchRepository.findByIsDeletedFalseAndStatus(MatchStatus.IN_PROGRESS);
+        for (Match match : liveMatches) {
+            checkAndAutoCompleteMatch(match);
+        }
+    }
+
+    @Transactional
     public List<MatchDto> getMatches(LocalDate startDate, LocalDate endDate) {
         List<Match> matches;
         if (startDate != null && endDate != null) {
@@ -104,7 +160,31 @@ public class MatchService {
             matches = matchRepository.findByIsDeletedFalseOrderByMatchDateDescCreatedAtDesc();
         }
 
-        return matches.stream().map(MatchDto::fromEntity).collect(Collectors.toList());
+        List<MatchDto> result = new ArrayList<>();
+        for (Match m : matches) {
+            if (m.getStatus() == MatchStatus.TEAMS_SPLIT) {
+                LocalDateTime scheduled = m.getMatchTime() != null
+                        ? LocalDateTime.of(m.getMatchDate(), m.getMatchTime())
+                        : m.getMatchDate().atStartOfDay();
+                if (!LocalDateTime.now().isBefore(scheduled)) {
+                    m.setStatus(MatchStatus.IN_PROGRESS);
+                    if (m.getStartAt() == null) {
+                        m.setStartAt(LocalDateTime.now());
+                    }
+                    m = matchRepository.save(m);
+                }
+            }
+            if (m.getStatus() == MatchStatus.IN_PROGRESS) {
+                m = checkAndAutoCompleteMatch(m);
+            }
+            MatchDto dto = MatchDto.fromEntity(m);
+            dto.setParticipants(participantRepository.findByMatchId(m.getId()).stream()
+                    .map(MatchParticipantDto::fromEntity)
+                    .collect(Collectors.toList()));
+            result.add(dto);
+        }
+
+        return result;
     }
 
     @Transactional
@@ -123,6 +203,10 @@ public class MatchService {
                 }
                 match = matchRepository.save(match);
             }
+        }
+
+        if (match.getStatus() == MatchStatus.IN_PROGRESS) {
+            match = checkAndAutoCompleteMatch(match);
         }
 
         MatchDto dto = MatchDto.fromEntity(match);
@@ -167,6 +251,9 @@ public class MatchService {
         // Auto-create PlayerStats and refresh leaderboard when match completes
         if (newStatus == MatchStatus.COMPLETED) {
             autoCreatePlayerStatsOnCompletion(saved);
+            cleanupGuestParticipants(saved.getId());
+        } else if (newStatus == MatchStatus.CANCELLED) {
+            cleanupGuestParticipants(saved.getId());
         }
 
         MatchDto dto = getMatchDetails(saved.getId());
@@ -486,7 +573,13 @@ public class MatchService {
 
     @Transactional
     public void removeParticipantByAdmin(UUID matchId, UUID userId) {
-        participantRepository.deleteByMatchIdAndUserId(matchId, userId);
+        participantRepository.findByMatchIdAndUserId(matchId, userId).ifPresent(p -> {
+            User u = p.getUser();
+            participantRepository.delete(p);
+            if (u != null && u.getRole() == UserRole.GUEST) {
+                userRepository.delete(u);
+            }
+        });
         notificationService.broadcastPickEvent(matchId, "REMOVE:" + userId);
     }
 
@@ -533,6 +626,9 @@ public class MatchService {
         match.setDeletedAt(LocalDateTime.now());
         match.setDeletedBy(admin);
         matchRepository.save(match);
+
+        // Dọn dẹp tài khoản khách của trận này
+        cleanupGuestParticipants(matchId);
 
         // Tự động hoàn tác toàn bộ điểm số, bàn thắng của trận này khỏi BXH
         leaderboardService.refreshAllLeaderboard();
@@ -611,6 +707,9 @@ public class MatchService {
 
         for (MatchParticipant participant : participants) {
             if (participant.getTeam() == null || participant.getTeam() == Team.NONE || participant.getTeam() == Team.BENCH) {
+                continue;
+            }
+            if (participant.getUser() == null || participant.getUser().getRole() == UserRole.GUEST) {
                 continue;
             }
 
@@ -781,6 +880,14 @@ public class MatchService {
             throw new BadRequestException("Chỉ có thể thêm cầu thủ ở bước Điểm danh (PENDING)");
         }
 
+        if (request.getJerseyNumber() == null || request.getJerseyNumber() < 1 || request.getJerseyNumber() > 99) {
+            throw new BadRequestException("Vui lòng chọn số áo cho cầu thủ khách trong khoảng từ 1 đến 99");
+        }
+
+        if (userRepository.existsByJerseyNumber(request.getJerseyNumber())) {
+            throw new BadRequestException("Số áo " + request.getJerseyNumber() + " đã có người trong hệ thống sử dụng, không thể chọn cho cầu thủ khách");
+        }
+
         String guestUid = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         User guestUser = User.builder()
                 .username("guest_" + guestUid)
@@ -807,5 +914,37 @@ public class MatchService {
 
         notificationService.broadcastMatchStatus(matchId, getMatchDetails(matchId));
         return dto;
+    }
+
+    @Transactional
+    public void cleanupGuestParticipants(UUID matchId) {
+        List<MatchParticipant> participants = participantRepository.findByMatchId(matchId);
+        for (MatchParticipant p : participants) {
+            User guestUser = p.getUser();
+            if (guestUser != null && guestUser.getRole() == UserRole.GUEST) {
+                // 1. Delete lineups
+                lineupRepository.findByMatchId(matchId).forEach(l -> {
+                    if (l.getUser() != null && l.getUser().getId().equals(guestUser.getId())) {
+                        lineupRepository.delete(l);
+                    }
+                });
+                // 2. Clear goals and assists
+                matchGoalRepository.findByMatchIdOrderByMinuteAscCreatedAtAsc(matchId).forEach(g -> {
+                    if (g.getScorer() != null && g.getScorer().getId().equals(guestUser.getId())) {
+                        matchGoalRepository.delete(g);
+                    } else if (g.getAssist() != null && g.getAssist().getId().equals(guestUser.getId())) {
+                        g.setAssist(null);
+                        matchGoalRepository.save(g);
+                    }
+                });
+                // 3. Clear player stats
+                playerStatsRepository.findByMatchIdAndUserId(matchId, guestUser.getId())
+                        .ifPresent(playerStatsRepository::delete);
+                // 4. Delete participant
+                participantRepository.delete(p);
+                // 5. Delete guest user
+                userRepository.delete(guestUser);
+            }
+        }
     }
 }

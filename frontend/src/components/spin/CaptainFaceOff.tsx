@@ -54,7 +54,7 @@ export const CaptainFaceOff: React.FC<CaptainFaceOffProps> = ({
           </div>
           {hostA ? (
             <>
-              <Avatar name={hostA.fullName} jerseyNumber={hostA.jerseyNumber} size="lg" showNumber bgColor="#DC2626" />
+              <Avatar name={hostA.fullName} src={hostA.avatarUrl} jerseyNumber={hostA.jerseyNumber} size="lg" showNumber bgColor="#DC2626" />
               <div className="font-heading font-black text-slate-900 mt-2.5 line-clamp-1 text-base">{hostA.fullName}</div>
               <span className="text-xs text-red-600 font-mono font-bold mt-0.5">Đội trưởng A</span>
             </>
@@ -86,7 +86,7 @@ export const CaptainFaceOff: React.FC<CaptainFaceOffProps> = ({
           </div>
           {hostB ? (
             <>
-              <Avatar name={hostB.fullName} jerseyNumber={hostB.jerseyNumber} size="lg" showNumber bgColor="#2563EB" />
+              <Avatar name={hostB.fullName} src={hostB.avatarUrl} jerseyNumber={hostB.jerseyNumber} size="lg" showNumber bgColor="#2563EB" />
               <div className="font-heading font-black text-slate-900 mt-2.5 line-clamp-1 text-base">{hostB.fullName}</div>
               <span className="text-xs text-blue-600 font-mono font-bold mt-0.5">Đội trưởng B</span>
             </>

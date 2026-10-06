@@ -6,8 +6,10 @@ export interface PlayerStatInput {
   team: Team;
   goals: number;
   assists: number;
+  saves?: number;
   isWinner: boolean;
   isMvp: boolean;
+  rating?: number | null;
 }
 
 export const statsService = {

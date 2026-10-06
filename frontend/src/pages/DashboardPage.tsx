@@ -147,7 +147,7 @@ export const DashboardPage: React.FC = () => {
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-3">
-                <Avatar name={user.fullName} jerseyNumber={user.jerseyNumber} size="md" showNumber />
+                <Avatar name={user.fullName} src={user.avatarUrl} jerseyNumber={user.jerseyNumber} size="md" showNumber />
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-space font-black text-base text-slate-950 dark:text-white">

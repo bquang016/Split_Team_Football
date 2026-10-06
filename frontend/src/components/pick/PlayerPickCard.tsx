@@ -33,7 +33,7 @@ export const PlayerPickCard: React.FC<PlayerPickCardProps> = ({
   return (
     <div className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs transition-all group">
       <div className="flex items-center gap-3">
-        <Avatar name={user.fullName} jerseyNumber={user.jerseyNumber} size="md" showNumber />
+        <Avatar name={user.fullName} src={user.avatarUrl} jerseyNumber={user.jerseyNumber} size="md" showNumber />
         <div>
           <div className="flex items-center gap-2">
             <span className="font-heading font-black text-sm text-slate-900 dark:text-white">{user.fullName}</span>

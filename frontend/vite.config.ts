@@ -16,6 +16,9 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    watch: {
+      ignored: ['**/*.jpg', '**/*.jpeg', '**/*.png', '**/*.webp'],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8081',

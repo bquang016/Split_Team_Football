@@ -26,4 +26,8 @@ public class PlayerStatItemDto {
     private Boolean isWinner = false;
 
     private Boolean isMvp = false;
+
+    @jakarta.validation.constraints.DecimalMin(value = "0.0", message = "Điểm đánh giá không thể nhỏ hơn 0")
+    @jakarta.validation.constraints.DecimalMax(value = "10.0", message = "Điểm đánh giá tối đa là 10.0")
+    private Double rating;
 }
