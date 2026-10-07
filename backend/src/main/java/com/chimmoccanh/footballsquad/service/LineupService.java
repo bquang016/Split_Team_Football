@@ -21,7 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -66,13 +68,30 @@ public class LineupService {
             }
         }
 
-        // Delete existing lineup only for the teams being updated
+        // 1. Deduplicate request by userId to avoid duplicates in the same payload
+        Map<UUID, LineupItemDto> uniqueItemsByUserId = new LinkedHashMap<>();
+        for (LineupItemDto item : request.getLineups()) {
+            if (item.getUserId() != null) {
+                uniqueItemsByUserId.put(item.getUserId(), item);
+            }
+        }
+
+        // 2. Delete existing lineups for the teams being updated
         for (com.chimmoccanh.footballsquad.model.enums.Team t : teamsInRequest) {
             lineupRepository.deleteByMatchIdAndTeam(matchId, t);
         }
 
+        // 3. Also delete any existing lineup for these users in this match (in case a user switched teams)
+        if (!uniqueItemsByUserId.isEmpty()) {
+            lineupRepository.deleteByMatchIdAndUserIdIn(matchId, uniqueItemsByUserId.keySet());
+        }
+
+        // 4. Force Hibernate/JPA to immediately flush all DELETES to the database before inserting new records
+        lineupRepository.flush();
+
+        // 5. Construct new lineup entities
         List<MatchLineup> lineupsToSave = new ArrayList<>();
-        for (LineupItemDto item : request.getLineups()) {
+        for (LineupItemDto item : uniqueItemsByUserId.values()) {
             User player = userRepository.findById(item.getUserId())
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cầu thủ: " + item.getUserId()));
 
@@ -89,7 +108,7 @@ public class LineupService {
             lineupsToSave.add(lineup);
         }
 
-        lineupRepository.saveAll(lineupsToSave);
+        lineupRepository.saveAllAndFlush(lineupsToSave);
         List<MatchLineup> allSaved = lineupRepository.findByMatchId(matchId);
         List<MatchLineupDto> dtos = allSaved.stream().map(MatchLineupDto::fromEntity).collect(Collectors.toList());
 

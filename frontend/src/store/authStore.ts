@@ -9,11 +9,9 @@ interface AuthState {
   isLoading: boolean;
   login: (token: string, refreshToken: string, user: User) => void;
   logout: () => Promise<void>;
-  quickLogin: (userId: string) => Promise<boolean>;
   checkAuth: () => Promise<void>;
   updateUser: (user: User) => void;
   isAdmin: () => boolean;
-  toggleAdminMode: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -49,23 +47,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  quickLogin: async (userId: string) => {
-    try {
-      const res = await authService.quickLogin(userId);
-      if (res.success && res.data) {
-        const { accessToken, refreshToken, user } = res.data;
-        localStorage.setItem('token', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
-        localStorage.setItem('user', JSON.stringify(user));
-        set({ token: accessToken, user, isAuthenticated: true });
-        return true;
-      }
-      return false;
-    } catch {
-      return false;
-    }
-  },
-
   checkAuth: async () => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -96,27 +77,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAdmin: () => {
     const user = get().user;
     return user?.role === 'ADMIN';
-  },
-
-  toggleAdminMode: async () => {
-    try {
-      const res = await authService.getQuickUsers();
-      if (res.success && res.data && res.data.length > 0) {
-        const currentUser = get().user;
-        if (currentUser?.role === 'ADMIN') {
-          // Switch to first player
-          const player = res.data.find((u) => u.role !== 'ADMIN') || res.data[0];
-          await get().quickLogin(player.id);
-        } else {
-          // Switch to admin
-          const admin = res.data.find((u) => u.role === 'ADMIN') || res.data[0];
-          await get().quickLogin(admin.id);
-        }
-        window.location.reload();
-      }
-    } catch (err) {
-      console.error('Không thể chuyển đổi chế độ quản trị viên', err);
-    }
   },
 }));
 

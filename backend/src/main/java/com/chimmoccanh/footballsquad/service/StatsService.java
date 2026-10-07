@@ -16,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -37,6 +39,14 @@ public class StatsService {
     public List<PlayerStatsDto> recordStats(UUID matchId, RecordStatsRequest request, User admin) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
+
+        if (match.isDeleted()) {
+            throw new BadRequestException("Trận đấu đã bị xóa");
+        }
+
+        if (match.getStatus() == MatchStatus.CANCELLED) {
+            throw new BadRequestException("Không thể nhập thống kê cho trận đấu đã bị hủy");
+        }
 
         LocalDateTime now = LocalDateTime.now();
         boolean isCompleted = match.getStatus() == MatchStatus.COMPLETED;
@@ -73,7 +83,7 @@ public class StatsService {
             stat.setIsWinner(Boolean.TRUE.equals(item.getIsWinner()));
             stat.setIsMvp(Boolean.TRUE.equals(item.getIsMvp()));
             if (item.getRating() != null) {
-                stat.setRating(Math.round(item.getRating() * 10.0) / 10.0);
+                stat.setRating(BigDecimal.valueOf(item.getRating()).setScale(1, RoundingMode.HALF_UP).doubleValue());
             } else {
                 stat.setRating(null);
             }

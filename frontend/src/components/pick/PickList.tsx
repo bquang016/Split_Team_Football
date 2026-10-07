@@ -11,6 +11,7 @@ import { pickService } from '../../services/pickService';
 import { useAuthStore } from '../../store/authStore';
 import { useWebSocketStore } from '../../store/websocketStore';
 import { TEAM_A_NAME, TEAM_B_NAME, TEAM_A_COLOR, TEAM_B_COLOR } from '../../utils/constants';
+import { X, Dices, Crown, Trophy, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import spainJerseyImg from '../../assets/ao_dau/taybannha.webp';
 import franceJerseyImg from '../../assets/ao_dau/phap.webp';
@@ -104,8 +105,23 @@ export const PickList: React.FC<PickListProps> = ({
   const activeTeamLabel = activeTurnTeam === 'A' ? TEAM_A_NAME : TEAM_B_NAME;
 
   // Phase: 3s Countdown when both captains are ready and round has not spun yet
+  const spinAttemptFailedRef = useRef(false);
+
   useEffect(() => {
-    if (bothCaptainsReady && !hasSpunForCurrentRound && !hasStarted3s && !isSpinning && availablePlayers.length > 0) {
+    if (!bothCaptainsReady) {
+      spinAttemptFailedRef.current = false;
+    }
+  }, [bothCaptainsReady]);
+
+  useEffect(() => {
+    if (
+      bothCaptainsReady &&
+      !hasSpunForCurrentRound &&
+      !hasStarted3s &&
+      !isSpinning &&
+      availablePlayers.length > 0 &&
+      !spinAttemptFailedRef.current
+    ) {
       setHasStarted3s(true);
       setCountdown3s(3);
     }
@@ -141,6 +157,7 @@ export const PickList: React.FC<PickListProps> = ({
       setIsSpinning(false);
       setShowSpinModal(false);
       setHasStarted3s(false);
+      spinAttemptFailedRef.current = true;
       toast.error(err.response?.data?.message || 'Không thể bắt đầu quay lượt chọn');
     }
   };
@@ -847,11 +864,11 @@ export const PickList: React.FC<PickListProps> = ({
                 className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors z-30"
                 aria-label="Đóng"
               >
-                <span className="material-symbols-outlined text-xl">close</span>
+                <X size={20} />
               </button>
 
               <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-xs font-space font-bold uppercase tracking-wider mb-2">
-                <span className="material-symbols-outlined text-sm">casino</span>
+                <Dices size={16} />
                 Vòng Quay Lượt Chọn #{currentRound}
               </div>
 
@@ -869,30 +886,40 @@ export const PickList: React.FC<PickListProps> = ({
                   winner={spinWinner}
                   durationMs={4500}
                   isSpinning={isSpinning}
+                  showWinnerCard={false}
                   onSpinComplete={handleSpinComplete}
                 />
               </div>
 
               {spinCompletedWinner ? (
-                <div className="mt-3 p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 animate-in zoom-in duration-300">
-                  <span className="text-xs font-space uppercase text-amber-400 font-black block mb-1">
-                    KẾT QUẢ VÒNG QUAY LƯỢT #{currentRound}
-                  </span>
-                  <div className="font-space font-black text-xl text-white">
-                    {spinCompletedWinner.fullName} (Đội {spinCompletedWinner.id === captainB.id ? TEAM_B_NAME : TEAM_A_NAME})
+                <div className="mt-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-slate-900/90 to-amber-500/20 border-2 border-amber-400/60 shadow-[0_8px_32px_rgba(245,158,11,0.3)] animate-in zoom-in-95 duration-400 text-center">
+                  <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                    <Crown size={18} className="text-amber-400 animate-bounce" />
+                    <span className="text-xs font-space font-black tracking-widest uppercase text-amber-400">
+                      KẾT QUẢ VÒNG QUAY LƯỢT #{currentRound}
+                    </span>
+                    <Sparkles size={16} className="text-amber-400 animate-pulse" />
                   </div>
-                  <p className="text-xs text-emerald-400 font-space font-bold mt-1">
+                  <div className="font-space font-black text-xl sm:text-2xl text-white tracking-tight">
+                    {spinCompletedWinner.fullName}
+                  </div>
+                  <div className="inline-flex items-center gap-2 mt-1 px-3 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-space text-slate-200">
+                    <span>Đội {spinCompletedWinner.id === captainB.id ? TEAM_B_NAME : TEAM_A_NAME}</span>
+                    <Trophy size={14} className="text-amber-400" />
+                  </div>
+                  <p className="text-xs text-emerald-400 font-space font-bold mt-2">
                     GIÀNH QUYỀN CHỌN CẦU THỦ TRƯỚC TRONG LƯỢT NÀY!
                   </p>
-                  <p className="text-[11px] text-slate-400 font-mono mt-2">
+                  <p className="text-[11px] text-slate-400 font-mono mt-1.5">
                     Lượt chọn 60 giây đang bắt đầu...
                   </p>
                 </div>
-              ) : (
-                <p className="text-xs text-amber-300/80 font-space animate-pulse mt-2">
-                  Đang quay... Cả hai bên đang cùng theo dõi trực tiếp!
+              ) : isSpinning ? (
+                <p className="text-xs text-amber-300/90 font-space animate-pulse mt-2 flex items-center justify-center gap-2">
+                  <Sparkles size={14} className="text-amber-400" />
+                  <span>Đang quay... Cả hai bên đang cùng theo dõi trực tiếp!</span>
                 </p>
-              )}
+              ) : null}
             </div>
           </div>,
           document.body

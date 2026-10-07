@@ -152,13 +152,26 @@ public class PickService {
 
             participant.setTeam(request.getTeam());
 
+            // Check if there are any remaining unpicked players after this pick
+            long remainingUnpicked = participantRepository.findByMatchId(matchId).stream()
+                    .filter(p -> !p.getId().equals(participant.getId()) && !Boolean.TRUE.equals(p.getIsHost()) && (p.getTeam() == null || p.getTeam() == Team.NONE))
+                    .count();
+
             // Update round picker state
             if (!match.isRoundFirstPickerDone()) {
                 match.setRoundFirstPickerDone(true);
-                match.setPickTurnStartedAt(LocalDateTime.now());
+                if (remainingUnpicked == 0) {
+                    // Cầu thủ cuối cùng đã được chọn, không còn ai cho người thứ hai chọn -> hoàn tất lượt luôn
+                    match.setRoundSecondPickerDone(true);
+                    match.setFirstPickTeam(null);
+                    match.setPickTurnStartedAt(null);
+                } else {
+                    match.setPickTurnStartedAt(LocalDateTime.now());
+                }
             } else {
                 match.setRoundSecondPickerDone(true);
                 match.setFirstPickTeam(null); // Reset so next round requires spin
+                match.setPickTurnStartedAt(null);
             }
         } else {
             participant.setTeam(request.getTeam());

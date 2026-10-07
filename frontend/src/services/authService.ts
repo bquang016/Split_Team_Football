@@ -29,15 +29,6 @@ export const authService = {
     return res.data;
   },
 
-  async quickLogin(userId: string): Promise<ApiResponse<AuthResponse>> {
-    const res = await api.post<ApiResponse<AuthResponse>>(`/api/auth/quick-login/${userId}`);
-    return res.data;
-  },
-
-  async getQuickUsers(): Promise<ApiResponse<User[]>> {
-    const res = await api.get<ApiResponse<User[]>>('/api/auth/quick-users');
-    return res.data;
-  },
 
   async checkAvailability(params: {
     username?: string;

@@ -32,6 +32,7 @@ import {
   TEAM_B_COLOR,
   FORMATION_PRESETS_7V7,
   detectPositionFromCoordinates,
+  DEFAULT_POSITION_COORDINATES,
 } from '../utils/constants';
 import spainJerseyImg from '../assets/ao_dau/taybannha.webp';
 import franceJerseyImg from '../assets/ao_dau/phap.webp';
@@ -169,9 +170,56 @@ export const MatchDetailPage: React.FC = () => {
         setMatch(res.data);
         setScoreA(res.data.scoreTeamA || 0);
         setScoreB(res.data.scoreTeamB || 0);
-        if (res.data.lineups) {
-          setLocalLineups(res.data.lineups);
+        const existingLineups = (res.data.lineups || []).map((l: MatchLineup) => {
+          const defaultCoord = l.positionLabel ? DEFAULT_POSITION_COORDINATES[l.positionLabel] : undefined;
+          return {
+            ...l,
+            xPercent: typeof l.xPercent === 'number' && !isNaN(l.xPercent) ? l.xPercent : (defaultCoord?.x ?? 50),
+            yPercent: typeof l.yPercent === 'number' && !isNaN(l.yPercent) ? l.yPercent : (defaultCoord?.y ?? 50),
+          };
+        });
+        let finalLineups: MatchLineup[] = [...existingLineups];
+        const hasTeamA = finalLineups.some((l) => l.team === 'A');
+        const hasTeamB = finalLineups.some((l) => l.team === 'B');
+        const teamAParticipants = (res.data.participants || []).filter((p) => p.team === 'A');
+        const teamBParticipants = (res.data.participants || []).filter((p) => p.team === 'B');
+        const defaultPreset = FORMATION_PRESETS_7V7[0];
+
+        if (!hasTeamA && teamAParticipants.length > 0) {
+          const startersA: MatchLineup[] = teamAParticipants.slice(0, 7).map((p, idx) => {
+            const pos = defaultPreset.positions[idx] || { position: 'CM', x: 50, y: 50 };
+            return {
+              id: `lineup-${p.user?.id || idx}`,
+              matchId: res.data.id,
+              user: p.user,
+              team: 'A',
+              positionLabel: (pos.position as Position) || 'CM',
+              xPercent: pos.x,
+              yPercent: pos.y,
+              jerseyNumber: p.jerseyNumber ?? p.user?.jerseyNumber,
+            };
+          });
+          finalLineups = [...finalLineups, ...startersA];
         }
+
+        if (!hasTeamB && teamBParticipants.length > 0) {
+          const startersB: MatchLineup[] = teamBParticipants.slice(0, 7).map((p, idx) => {
+            const pos = defaultPreset.positions[idx] || { position: 'CM', x: 50, y: 50 };
+            return {
+              id: `lineup-${p.user?.id || idx}`,
+              matchId: res.data.id,
+              user: p.user,
+              team: 'B',
+              positionLabel: (pos.position as Position) || 'CM',
+              xPercent: pos.x,
+              yPercent: pos.y,
+              jerseyNumber: p.jerseyNumber ?? p.user?.jerseyNumber,
+            };
+          });
+          finalLineups = [...finalLineups, ...startersB];
+        }
+
+        setLocalLineups(finalLineups);
 
         // Pre-select hosts if already recorded in spinSession
         if (res.data.spinSession) {
@@ -496,15 +544,19 @@ export const MatchDetailPage: React.FC = () => {
 
   const handleTacticsSave = async () => {
     if (!match) return;
+    const currentTeamLineups = localLineups.filter((l) => l.team === tacticsActiveTeam);
+    if (currentTeamLineups.length === 0) {
+      toast.error(
+        `Đội ${tacticsActiveTeam === 'A' ? teamALabel : teamBLabel} chưa có cầu thủ nào trên sân. Vui lòng chọn sơ đồ mẫu trước khi lưu!`
+      );
+      return;
+    }
+
     setTacticsSaving(true);
     try {
-      const teamLineups = adminActive
-        ? localLineups
-        : localLineups.filter((l) => l.team === tacticsActiveTeam);
-
       await lineupService.saveLineup(
         match.id,
-        teamLineups.map((l) => ({
+        currentTeamLineups.map((l) => ({
           userId: l.user.id,
           team: l.team,
           positionLabel: l.positionLabel,
@@ -513,11 +565,12 @@ export const MatchDetailPage: React.FC = () => {
           jerseyNumber: l.jerseyNumber,
         }))
       );
-      toast.success(`Đã lưu đội hình ${tacticsActiveTeam === 'A' ? teamALabel : teamBLabel} thành công!`);
+      toast.success(`Đã lưu đội hình Đội ${tacticsActiveTeam === 'A' ? teamALabel : teamBLabel} thành công!`);
       setTacticsEditing(false);
       fetchMatch();
-    } catch {
-      toast.error('Lỗi khi lưu sơ đồ đội hình');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.response?.data?.errors?.lineups || 'Lỗi khi lưu sơ đồ đội hình';
+      toast.error(msg);
     } finally {
       setTacticsSaving(false);
     }
@@ -1698,7 +1751,7 @@ export const MatchDetailPage: React.FC = () => {
               {canEdit(tacticsActiveTeam) && (
                 tacticsEditing ? (
                   <>
-                    <div className="hidden sm:flex items-center gap-1.5 text-xs font-space">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs font-space">
                       <span className="text-slate-400">Sơ đồ mẫu:</span>
                       {FORMATION_PRESETS_7V7.slice(0, 3).map((preset, idx) => (
                         <button

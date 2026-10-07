@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { Avatar, Badge } from '../../ui';
-import { QuickUserSwitcher } from './QuickUserSwitcher';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 
@@ -110,11 +109,9 @@ export const Header: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* RIGHT SECTION: Quick Switcher & User Profile Dropdown                     */}
+      {/* RIGHT SECTION: User Profile Dropdown / Auth Actions                       */}
       {/* ========================================================================= */}
       <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-        <QuickUserSwitcher />
-
         {isAuthenticated && user ? (
           <div className="relative" ref={dropdownRef}>
             {/* User Dropdown Trigger Button (Replaces old pill + logout button) */}

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { MatchLineup, Position, Team } from '../../types';
+import { DEFAULT_POSITION_COORDINATES } from '../../utils/constants';
 import { PlayerToken } from './PlayerToken';
 
 interface FootballPitchProps {
@@ -335,23 +336,29 @@ export const FootballPitch: React.FC<FootballPitchProps> = ({
         )}
 
         {/* Player Tokens on Pitch */}
-        {teamLineups.map((player) => (
-          <PlayerToken
-            key={player.user.id}
-            user={player.user}
-            team={player.team}
-            positionLabel={player.positionLabel}
-            jerseyNumber={player.jerseyNumber}
-            xPercent={player.xPercent ?? 50}
-            yPercent={player.yPercent ?? 50}
-            isSelected={selectedUserId === player.user.id}
-            showNames={showNames}
-            showNumbers={showNumbers}
-            showPositions={showPositions}
-            onSelect={() => onSelectUser?.(player.user.id)}
-            onDragStart={() => handlePointerDown(player.user.id)}
-          />
-        ))}
+        {teamLineups.map((player) => {
+          const defaultCoord = player.positionLabel ? DEFAULT_POSITION_COORDINATES[player.positionLabel] : undefined;
+          const x = typeof player.xPercent === 'number' && !isNaN(player.xPercent) ? player.xPercent : (defaultCoord?.x ?? 50);
+          const y = typeof player.yPercent === 'number' && !isNaN(player.yPercent) ? player.yPercent : (defaultCoord?.y ?? 50);
+
+          return (
+            <PlayerToken
+              key={player.user.id}
+              user={player.user}
+              team={player.team}
+              positionLabel={player.positionLabel}
+              jerseyNumber={player.jerseyNumber}
+              xPercent={x}
+              yPercent={y}
+              isSelected={selectedUserId === player.user.id}
+              showNames={showNames}
+              showNumbers={showNumbers}
+              showPositions={showPositions}
+              onSelect={() => onSelectUser?.(player.user.id)}
+              onDragStart={() => handlePointerDown(player.user.id)}
+            />
+          );
+        })}
 
         {teamLineups.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

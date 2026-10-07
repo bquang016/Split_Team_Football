@@ -165,3 +165,22 @@ export function detectPositionFromCoordinates(x: number, y: number): Position {
   if (x > 68) return 'RW';
   return 'ST';
 }
+
+/**
+ * Default standard pitch coordinates (x: 0-100, y: 0-100) for each football position in 7v7.
+ */
+export const DEFAULT_POSITION_COORDINATES: Record<Position, { x: number; y: number }> = {
+  GK: { x: 50, y: 88 },
+  CB: { x: 50, y: 70 },
+  LB: { x: 25, y: 70 },
+  RB: { x: 75, y: 70 },
+  CDM: { x: 50, y: 56 },
+  CM: { x: 50, y: 46 },
+  LM: { x: 20, y: 46 },
+  RM: { x: 80, y: 46 },
+  CAM: { x: 50, y: 34 },
+  ST: { x: 50, y: 20 },
+  LW: { x: 25, y: 22 },
+  RW: { x: 75, y: 22 },
+};
+

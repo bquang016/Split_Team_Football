@@ -2,6 +2,7 @@ package com.chimmoccanh.footballsquad.model;
 
 import com.chimmoccanh.footballsquad.model.enums.Position;
 import com.chimmoccanh.footballsquad.model.enums.Team;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -38,9 +39,11 @@ public class MatchLineup {
     @Column(name = "position_label", length = 10)
     private Position positionLabel;
 
+    @JsonProperty("xPercent")
     @Column(name = "x_percent")
     private Double xPercent;
 
+    @JsonProperty("yPercent")
     @Column(name = "y_percent")
     private Double yPercent;
 

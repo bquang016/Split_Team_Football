@@ -169,8 +169,8 @@ public class SpinService {
         long unpickedCount = participantRepository.findByMatchId(matchId).stream()
                 .filter(p -> !Boolean.TRUE.equals(p.getIsHost()) && (p.getTeam() == null || p.getTeam() == Team.NONE))
                 .count();
-        if (unpickedCount <= 1) {
-            throw new BadRequestException("Không còn đủ cầu thủ chưa chọn để quay lượt chọn mới");
+        if (unpickedCount <= 0) {
+            throw new BadRequestException("Tất cả cầu thủ đã được chọn, không còn ai để quay lượt chọn mới");
         }
 
         List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrue(matchId);

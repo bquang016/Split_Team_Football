@@ -9,7 +9,7 @@ import { BenchReserves } from '../components/lineup/BenchReserves';
 import { TacticalSidebar } from '../components/lineup/TacticalSidebar';
 import { LineupExport } from '../components/lineup/LineupExport';
 import { LineupPosterModal } from '../components/lineup/LineupPosterModal';
-import { FORMATION_PRESETS_7V7, TEAM_A_NAME, TEAM_B_NAME, detectPositionFromCoordinates } from '../utils/constants';
+import { FORMATION_PRESETS_7V7, TEAM_A_NAME, TEAM_B_NAME, detectPositionFromCoordinates, DEFAULT_POSITION_COORDINATES } from '../utils/constants';
 import type { Match, MatchLineup, Position, Team } from '../types';
 import toast from 'react-hot-toast';
 import spainJerseyImg from '../assets/ao_dau/taybannha.webp';
@@ -78,14 +78,60 @@ export const LineupPage: React.FC = () => {
       // Ensure jersey numbers are retained from match participants or user profiles
       const enrichedLineups = (m.lineups ?? []).map((l: MatchLineup) => {
         const participant = m.participants?.find((p) => p.user.id === l.user.id);
+        const defaultCoord = l.positionLabel ? DEFAULT_POSITION_COORDINATES[l.positionLabel] : undefined;
         return {
           ...l,
+          xPercent: typeof l.xPercent === 'number' && !isNaN(l.xPercent) ? l.xPercent : (defaultCoord?.x ?? 50),
+          yPercent: typeof l.yPercent === 'number' && !isNaN(l.yPercent) ? l.yPercent : (defaultCoord?.y ?? 50),
           jerseyNumber: l.jerseyNumber ?? participant?.jerseyNumber ?? l.user.jerseyNumber,
         };
       });
-      setLineups(enrichedLineups);
-      const teamALineups = enrichedLineups.filter((l) => l.team === 'A');
-      const teamBLineups = enrichedLineups.filter((l) => l.team === 'B');
+
+      // Auto-populate default 2-3-1 formation for teams that have participants but no saved lineup
+      let finalLineups: MatchLineup[] = [...enrichedLineups];
+      const hasTeamA = finalLineups.some((l) => l.team === 'A');
+      const hasTeamB = finalLineups.some((l) => l.team === 'B');
+      const teamAParticipants = (m.participants ?? []).filter((p) => p.team === 'A');
+      const teamBParticipants = (m.participants ?? []).filter((p) => p.team === 'B');
+      const defaultPreset = FORMATION_PRESETS_7V7[0];
+
+      if (!hasTeamA && teamAParticipants.length > 0) {
+        const startersA: MatchLineup[] = teamAParticipants.slice(0, 7).map((p, idx) => {
+          const pos = defaultPreset.positions[idx] || { position: 'CM', x: 50, y: 50 };
+          return {
+            id: `lineup-${p.user.id}`,
+            matchId: m.id,
+            user: p.user,
+            team: 'A',
+            positionLabel: pos.position as Position,
+            xPercent: pos.x,
+            yPercent: pos.y,
+            jerseyNumber: p.jerseyNumber ?? p.user.jerseyNumber,
+          };
+        });
+        finalLineups = [...finalLineups, ...startersA];
+      }
+
+      if (!hasTeamB && teamBParticipants.length > 0) {
+        const startersB: MatchLineup[] = teamBParticipants.slice(0, 7).map((p, idx) => {
+          const pos = defaultPreset.positions[idx] || { position: 'CM', x: 50, y: 50 };
+          return {
+            id: `lineup-${p.user.id}`,
+            matchId: m.id,
+            user: p.user,
+            team: 'B',
+            positionLabel: pos.position as Position,
+            xPercent: pos.x,
+            yPercent: pos.y,
+            jerseyNumber: p.jerseyNumber ?? p.user.jerseyNumber,
+          };
+        });
+        finalLineups = [...finalLineups, ...startersB];
+      }
+
+      setLineups(finalLineups);
+      const teamALineups = finalLineups.filter((l) => l.team === 'A');
+      const teamBLineups = finalLineups.filter((l) => l.team === 'B');
       setEditingTeams((prev) => ({
         A: prev.A || teamALineups.length === 0,
         B: prev.B || teamBLineups.length === 0,
@@ -318,15 +364,19 @@ export const LineupPage: React.FC = () => {
   // Save lineup to backend (Only saves active team)
   const handleSave = useCallback(async () => {
     if (!id) return;
+    const currentTeamLineups = lineups.filter((l) => l.team === activeTeam);
+    if (currentTeamLineups.length === 0) {
+      toast.error(
+        `Đội ${activeTeamLabel} chưa có cầu thủ nào trên sân. Vui lòng chọn sơ đồ mẫu hoặc kéo cầu thủ vào sân trước khi lưu!`
+      );
+      return;
+    }
+
     setSaving(true);
     try {
-      const teamLineups = adminActive
-        ? lineups
-        : lineups.filter((l) => l.team === activeTeam);
-
       await lineupService.saveLineup(
         id,
-        teamLineups.map((l) => ({
+        currentTeamLineups.map((l) => ({
           userId: l.user.id,
           team: l.team,
           positionLabel: l.positionLabel,
@@ -338,12 +388,13 @@ export const LineupPage: React.FC = () => {
       toast.success(`Đã chốt xong đội hình ${activeTeamLabel}!`);
       setEditingTeams((prev) => ({ ...prev, [activeTeam]: false }));
       fetchMatchData();
-    } catch {
-      toast.error('Lỗi khi lưu sơ đồ');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.response?.data?.errors?.lineups || 'Lỗi khi lưu sơ đồ';
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
-  }, [id, lineups, adminActive, activeTeam, activeTeamLabel]);
+  }, [id, lineups, activeTeam, activeTeamLabel]);
 
   // Keyboard shortcut Ctrl+S / Cmd+S
   useEffect(() => {

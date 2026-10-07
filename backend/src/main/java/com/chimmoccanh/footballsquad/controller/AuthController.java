@@ -53,17 +53,6 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("Đăng xuất thành công", null));
     }
 
-    @PostMapping("/quick-login/{userId}")
-    public ResponseEntity<ApiResponse<AuthResponse>> quickLogin(@PathVariable java.util.UUID userId) {
-        AuthResponse authResponse = authService.quickLogin(userId);
-        return ResponseEntity.ok(ApiResponse.ok("Đã chuyển đổi tài khoản thành công", authResponse));
-    }
-
-    @GetMapping("/quick-users")
-    public ResponseEntity<ApiResponse<java.util.List<UserDto>>> getQuickUsers() {
-        java.util.List<UserDto> users = authService.getQuickUsers();
-        return ResponseEntity.ok(ApiResponse.ok(users));
-    }
 
     @GetMapping("/check-availability")
     public ResponseEntity<ApiResponse<CheckAvailabilityResponse>> checkAvailability(

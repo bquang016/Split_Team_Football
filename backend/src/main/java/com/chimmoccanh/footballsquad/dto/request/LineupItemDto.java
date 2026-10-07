@@ -2,6 +2,8 @@ package com.chimmoccanh.footballsquad.dto.request;
 
 import com.chimmoccanh.footballsquad.model.enums.Position;
 import com.chimmoccanh.footballsquad.model.enums.Team;
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -17,8 +19,12 @@ public class LineupItemDto {
 
     private Position positionLabel;
 
+    @JsonProperty("xPercent")
+    @JsonAlias({"x_percent", "xPercent", "XPercent", "xpercent"})
     private Double xPercent;
 
+    @JsonProperty("yPercent")
+    @JsonAlias({"y_percent", "yPercent", "YPercent", "ypercent"})
     private Double yPercent;
 
     private Integer jerseyNumber;

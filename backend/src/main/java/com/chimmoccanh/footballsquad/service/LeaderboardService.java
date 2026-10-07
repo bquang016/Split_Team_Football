@@ -15,6 +15,8 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -93,8 +95,13 @@ public class LeaderboardService {
                 if (Boolean.TRUE.equals(ps.getIsMvp())) totalMvp++;
             }
 
-            double roundedTotalRating = Math.round(totalRating * 10.0) / 10.0;
-            double avgRating = ratedMatches > 0 ? Math.round((totalRating / ratedMatches) * 10.0) / 10.0 : 0.0;
+            // Chỉ đưa vào bảng xếp hạng đánh giá những cầu thủ thực sự đã có ít nhất 1 trận được chấm điểm
+            if (ratedMatches == 0) {
+                continue;
+            }
+
+            double roundedTotalRating = BigDecimal.valueOf(totalRating).setScale(1, RoundingMode.HALF_UP).doubleValue();
+            double avgRating = BigDecimal.valueOf(totalRating / ratedMatches).setScale(1, RoundingMode.HALF_UP).doubleValue();
 
             dtoList.add(RatingLeaderboardDto.builder()
                     .user(UserDto.fromEntity(user))
@@ -109,19 +116,21 @@ public class LeaderboardService {
                     .build());
         }
 
-        // Sort primarily by totalRating DESC, then averageRating DESC, then totalGoals DESC
+        // Sort primarily by totalRating DESC, then averageRating DESC, then totalMvp DESC, then totalGoals DESC, then totalAssists DESC
         dtoList.sort(Comparator
                 .comparing(RatingLeaderboardDto::getTotalRating, Comparator.reverseOrder())
                 .thenComparing(RatingLeaderboardDto::getAverageRating, Comparator.reverseOrder())
+                .thenComparing(RatingLeaderboardDto::getTotalMvp, Comparator.reverseOrder())
                 .thenComparing(RatingLeaderboardDto::getTotalGoals, Comparator.reverseOrder())
                 .thenComparing(RatingLeaderboardDto::getTotalAssists, Comparator.reverseOrder()));
 
-        // Assign ranks and mark rank 1 as best player of period
+        // Assign ranks and mark best player (supports tied top rating)
+        double maxRating = dtoList.isEmpty() ? 0.0 : dtoList.get(0).getTotalRating();
         for (int i = 0; i < dtoList.size(); i++) {
             RatingLeaderboardDto item = dtoList.get(i);
             int rank = i + 1;
             item.setRank(rank);
-            item.setIsBestPlayer(rank == 1 && item.getTotalRating() > 0);
+            item.setIsBestPlayer(item.getTotalRating() > 0 && Double.compare(item.getTotalRating(), maxRating) == 0);
         }
 
         return dtoList;
