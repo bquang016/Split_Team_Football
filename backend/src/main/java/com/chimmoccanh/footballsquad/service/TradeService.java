@@ -48,6 +48,24 @@ public class TradeService {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
 
+        List<MatchStatus> allowedStatuses = List.of(
+                MatchStatus.TRADE_WINDOW,
+                MatchStatus.TEAMS_SPLIT,
+                MatchStatus.IN_PROGRESS,
+                MatchStatus.COMPLETED
+        );
+        if (!allowedStatuses.contains(match.getStatus())) {
+            throw new BadRequestException("Chỉ có thể đề xuất trao đổi cầu thủ sau khi đã phân đội");
+        }
+
+        boolean isAdmin = sender.getRole() == UserRole.ADMIN;
+        MatchParticipant senderPart = participantRepository.findByMatchIdAndUserId(matchId, sender.getId()).orElse(null);
+        boolean isCaptain = senderPart != null && Boolean.TRUE.equals(senderPart.getIsHost());
+
+        if (!isCaptain && !isAdmin) {
+            throw new BadRequestException("Chỉ đội trưởng hoặc quản trị viên mới có quyền đề xuất trao đổi");
+        }
+
         User offeredUser = userRepository.findById(request.getPlayerOfferedId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cầu thủ đổi đi"));
 
@@ -59,6 +77,14 @@ public class TradeService {
 
         MatchParticipant partWanted = participantRepository.findByMatchIdAndUserId(matchId, wantedUser.getId())
                 .orElseThrow(() -> new BadRequestException("Cầu thủ muốn lấy chưa tham gia trận"));
+
+        if (Boolean.TRUE.equals(partOffered.getIsHost()) || Boolean.TRUE.equals(partWanted.getIsHost())) {
+            throw new BadRequestException("Không thể trao đổi đội trưởng");
+        }
+
+        if (!isAdmin && senderPart != null && partOffered.getTeam() != senderPart.getTeam()) {
+            throw new BadRequestException("Bạn chỉ có thể đổi cầu thủ thuộc đội của mình");
+        }
 
         if (partOffered.getTeam() == partWanted.getTeam() || partOffered.getTeam() == Team.NONE || partWanted.getTeam() == Team.NONE) {
             throw new BadRequestException("Hai cầu thủ phải thuộc hai đội khác nhau để trao đổi");
@@ -97,6 +123,8 @@ public class TradeService {
             throw new BadRequestException("Yêu cầu chuyển nhượng không còn ở trạng thái chờ duyệt");
         }
 
+        Match match = trade.getMatch();
+
         if (accept) {
             trade.setStatus(TradeStatus.ACCEPTED);
             trade.setRespondedAt(LocalDateTime.now());
@@ -129,7 +157,6 @@ public class TradeService {
         TradeRequestDto dto = TradeRequestDto.fromEntity(saved);
 
         // Reset no-trade consensus if active
-        Match match = trade.getMatch();
         if (match != null && (match.isCaptainAConfirmedNoTrade() || match.isCaptainBConfirmedNoTrade())) {
             match.setCaptainAConfirmedNoTrade(false);
             match.setCaptainBConfirmedNoTrade(false);

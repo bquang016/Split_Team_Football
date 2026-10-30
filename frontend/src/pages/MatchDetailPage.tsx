@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Match, MatchLineup, Position, Team, User } from '../types';
+import { Match, MatchLineup, MATCH_STATUS_LABEL, Position, Team, User } from '../types';
 import { matchService } from '../services/matchService';
 import { spinService } from '../services/spinService';
 import { pickService } from '../services/pickService';
@@ -255,7 +255,8 @@ export const MatchDetailPage: React.FC = () => {
           if (!prev) return updatedMatch;
           const statusChanged = prev.status !== updatedMatch.status;
           if (statusChanged && updatedMatch?.status) {
-            toast.success(`Trạng thái trận đấu: ${updatedMatch.status}`);
+            const statusLabel = MATCH_STATUS_LABEL[updatedMatch.status] || updatedMatch.status;
+            toast.success(`Trạng thái trận đấu: ${statusLabel}`);
             switch (updatedMatch.status) {
               case 'JERSEY_SELECTION':
                 setActiveTab('jersey');
