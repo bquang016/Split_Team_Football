@@ -19,4 +19,6 @@ public interface MatchParticipantRepository extends JpaRepository<MatchParticipa
     void deleteByMatchIdAndUserId(UUID matchId, UUID userId);
     List<MatchParticipant> findByUserId(UUID userId);
     List<MatchParticipant> findByMatchIdAndIsHostTrue(UUID matchId);
+    List<MatchParticipant> findByMatchIdAndIsHostTrueOrderByPickOrderAsc(UUID matchId);
+    List<MatchParticipant> findByMatchIdAndIsHostTrueOrderByJoinedAtAscIdAsc(UUID matchId);
 }

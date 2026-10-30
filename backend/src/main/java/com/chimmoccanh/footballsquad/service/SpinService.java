@@ -106,7 +106,10 @@ public class SpinService {
             throw new BadRequestException("Chỉ quay chọn quyền chọn áo ở bước Chọn áo đấu");
         }
 
-        List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrue(matchId);
+        List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrueOrderByPickOrderAsc(matchId);
+        if (hosts.size() < 2) {
+            hosts = participantRepository.findByMatchIdAndIsHostTrueOrderByJoinedAtAscIdAsc(matchId);
+        }
         if (hosts.size() < 2) {
             throw new BadRequestException("Cần có 2 đội trưởng để quay chọn áo");
         }
@@ -115,12 +118,6 @@ public class SpinService {
         if (!isAdmin && (!match.isJerseyCaptainAReady() || !match.isJerseyCaptainBReady())) {
             throw new BadRequestException("Cần cả 2 đội trưởng xác nhận sẵn sàng trước khi quay chọn áo");
         }
-
-        hosts.sort((a, b) -> {
-            if (a.getTeam() == Team.A) return -1;
-            if (b.getTeam() == Team.A) return 1;
-            return 0;
-        });
 
         User hostA = hosts.get(0).getUser();
         User hostB = hosts.get(1).getUser();
@@ -173,11 +170,6 @@ public class SpinService {
             throw new BadRequestException("Tất cả cầu thủ đã được chọn, không còn ai để quay lượt chọn mới");
         }
 
-        List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrue(matchId);
-        if (hosts.size() < 2) {
-            throw new BadRequestException("Cần có 2 đội trưởng để quay lượt pick");
-        }
-
         boolean isAdmin = currentUser != null && currentUser.getRole() == com.chimmoccanh.footballsquad.model.enums.UserRole.ADMIN;
 
         // Validate consensus: both captains must be ready unless admin bypasses
@@ -185,15 +177,28 @@ public class SpinService {
             throw new BadRequestException("Cần cả 2 đội trưởng xác nhận sẵn sàng trước khi quay lượt chọn");
         }
 
-        // Sort by team to ensure consistent A/B ordering
-        hosts.sort((a, b) -> {
-            if (a.getTeam() == Team.A) return -1;
-            if (b.getTeam() == Team.A) return 1;
-            return 0;
-        });
+        // Host A is Team A captain, Host B is Team B captain
+        MatchParticipant partA = participantRepository.findByMatchIdAndTeam(matchId, Team.A).stream()
+                .filter(p -> Boolean.TRUE.equals(p.getIsHost()))
+                .findFirst()
+                .orElse(null);
+        MatchParticipant partB = participantRepository.findByMatchIdAndTeam(matchId, Team.B).stream()
+                .filter(p -> Boolean.TRUE.equals(p.getIsHost()))
+                .findFirst()
+                .orElse(null);
 
-        User hostA = hosts.get(0).getUser();
-        User hostB = hosts.get(1).getUser();
+        if (partA == null || partB == null) {
+            List<MatchParticipant> fallbackHosts = participantRepository.findByMatchIdAndIsHostTrueOrderByPickOrderAsc(matchId);
+            if (fallbackHosts.size() >= 2) {
+                partA = fallbackHosts.get(0);
+                partB = fallbackHosts.get(1);
+            } else {
+                throw new BadRequestException("Không tìm thấy đủ 2 đội trưởng của hai đội");
+            }
+        }
+
+        User hostA = partA.getUser();
+        User hostB = partB.getUser();
 
         long seed = Math.abs(secureRandom.nextLong());
         boolean winnerIsA = (seed % 2 == 0);

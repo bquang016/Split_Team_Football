@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Match, MatchLineup, Position, Team, User } from '../types';
+import { Match, MatchLineup, MATCH_STATUS_LABEL, Position, Team, User } from '../types';
 import { matchService } from '../services/matchService';
 import { spinService } from '../services/spinService';
 import { pickService } from '../services/pickService';
@@ -9,6 +9,7 @@ import { lineupService } from '../services/lineupService';
 import { statsService, PlayerStatInput } from '../services/statsService';
 import { adminService } from '../services/adminService';
 import { authService } from '../services/authService';
+import { tradeService } from '../services/tradeService';
 import { useAuthStore } from '../store/authStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { Avatar, Badge, Button, Card, Breadcrumbs, Tabs, Select } from '../ui';
@@ -250,28 +251,33 @@ export const MatchDetailPage: React.FC = () => {
 
     const unsubs = [
       subscribe(`/topic/match/${id}/status`, (updatedMatch: Match) => {
-        setMatch((prev) => (prev ? { ...prev, ...updatedMatch } : updatedMatch));
-        toast.success(`Trạng thái trận đấu: ${updatedMatch.status}`);
-        if (updatedMatch?.status) {
-          switch (updatedMatch.status) {
-            case 'JERSEY_SELECTION':
-              setActiveTab('jersey');
-              break;
-            case 'PLAYER_PICKING':
-              setActiveTab('pick');
-              break;
-            case 'TRADE_WINDOW':
-              setActiveTab('trade');
-              break;
-            case 'TEAMS_SPLIT':
-            case 'IN_PROGRESS':
-              setActiveTab('squad');
-              break;
-            case 'COMPLETED':
-              setActiveTab('stats');
-              break;
+        setMatch((prev) => {
+          if (!prev) return updatedMatch;
+          const statusChanged = prev.status !== updatedMatch.status;
+          if (statusChanged && updatedMatch?.status) {
+            const statusLabel = MATCH_STATUS_LABEL[updatedMatch.status] || updatedMatch.status;
+            toast.success(`Trạng thái trận đấu: ${statusLabel}`);
+            switch (updatedMatch.status) {
+              case 'JERSEY_SELECTION':
+                setActiveTab('jersey');
+                break;
+              case 'PLAYER_PICKING':
+                setActiveTab('pick');
+                break;
+              case 'TRADE_WINDOW':
+                setActiveTab('trade');
+                break;
+              case 'TEAMS_SPLIT':
+              case 'IN_PROGRESS':
+                setActiveTab('squad');
+                break;
+              case 'COMPLETED':
+                setActiveTab('stats');
+                break;
+            }
           }
-        }
+          return { ...prev, ...updatedMatch };
+        });
       }),
       subscribe(`/topic/match/${id}/spin`, (session: any) => {
         setIsSpinning(true);
@@ -747,6 +753,26 @@ export const MatchDetailPage: React.FC = () => {
       fetchMatch();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Không thể cập nhật trạng thái');
+    }
+  };
+
+  const handleTransferPlayer = async (playerId: string, playerName: string, fromTeam: string, toTeam: string) => {
+    if (!match?.id) return;
+    const isCompleted = match.status === 'COMPLETED';
+    const confirmMsg = isCompleted
+      ? `Trận đấu đã KẾT THÚC.\nBạn có chắc chắn muốn chuyển cầu thủ "${playerName}" từ ${fromTeam} sang ${toTeam}?\n\nToàn bộ bàn thắng của cầu thủ này sẽ được tính lại cho ${toTeam}, đồng thời cập nhật lại tỉ số trận đấu và Bảng xếp hạng.`
+      : `Bạn có chắc chắn muốn chuyển cầu thủ "${playerName}" từ ${fromTeam} sang ${toTeam}?\n\nToàn bộ bàn thắng (nếu có) sẽ được tính cho ${toTeam}.`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await tradeService.donatePlayer(match.id, playerId);
+      if (res.success) {
+        toast.success(`Đã chuyển ${playerName} sang ${toTeam} thành công!`);
+        fetchMatch();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Không thể chuyển nhượng cầu thủ');
     }
   };
 
@@ -1444,9 +1470,22 @@ export const MatchDetailPage: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                          <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-[11px] border border-emerald-500/30">
-                            {l.positionLabel || 'CM'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-[11px] border border-emerald-500/30">
+                              {l.positionLabel || 'CM'}
+                            </span>
+                            {(adminActive || canEditTeamA) && l.user?.id && (!captainAParticipant?.user?.id || captainAParticipant.user.id !== l.user.id) && (
+                              <button
+                                type="button"
+                                onClick={() => handleTransferPlayer(l.user.id, l.user.fullName, teamALabel, teamBLabel)}
+                                className="px-2 py-0.5 rounded-md text-[11px] font-space font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 border border-blue-200/80 dark:border-blue-800/60 inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                title={`Chuyển ${l.user.fullName} sang Đội ${teamBLabel}`}
+                              >
+                                <span className="material-symbols-outlined text-[13px]">swap_horiz</span>
+                                <span className="hidden sm:inline">Sang {teamBLabel}</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1490,9 +1529,22 @@ export const MatchDetailPage: React.FC = () => {
                               )}
                             </div>
                           </div>
-                          <span className="text-[11px] font-mono text-slate-400">
-                            #{p.jerseyNumber ?? p.user?.jerseyNumber ?? '-'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-mono text-slate-400">
+                              #{p.jerseyNumber ?? p.user?.jerseyNumber ?? '-'}
+                            </span>
+                            {(adminActive || canEditTeamA) && p.user?.id && !p.isHost && (
+                              <button
+                                type="button"
+                                onClick={() => handleTransferPlayer(p.user.id, p.user.fullName, teamALabel, teamBLabel)}
+                                className="px-2 py-0.5 rounded-md text-[11px] font-space font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 border border-blue-200/80 dark:border-blue-800/60 inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                title={`Chuyển ${p.user.fullName} sang Đội ${teamBLabel}`}
+                              >
+                                <span className="material-symbols-outlined text-[13px]">swap_horiz</span>
+                                <span className="hidden sm:inline">Sang {teamBLabel}</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1626,9 +1678,22 @@ export const MatchDetailPage: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                          <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-[11px] border border-emerald-500/30">
-                            {l.positionLabel || 'CM'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-[11px] border border-emerald-500/30">
+                              {l.positionLabel || 'CM'}
+                            </span>
+                            {(adminActive || canEditTeamB) && l.user?.id && (!captainBParticipant?.user?.id || captainBParticipant.user.id !== l.user.id) && (
+                              <button
+                                type="button"
+                                onClick={() => handleTransferPlayer(l.user.id, l.user.fullName, teamBLabel, teamALabel)}
+                                className="px-2 py-0.5 rounded-md text-[11px] font-space font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 border border-rose-200/80 dark:border-rose-800/60 inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                title={`Chuyển ${l.user.fullName} sang Đội ${teamALabel}`}
+                              >
+                                <span className="material-symbols-outlined text-[13px]">swap_horiz</span>
+                                <span className="hidden sm:inline">Sang {teamALabel}</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1672,9 +1737,22 @@ export const MatchDetailPage: React.FC = () => {
                               )}
                             </div>
                           </div>
-                          <span className="text-[11px] font-mono text-slate-400">
-                            #{p.jerseyNumber ?? p.user?.jerseyNumber ?? '-'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-mono text-slate-400">
+                              #{p.jerseyNumber ?? p.user?.jerseyNumber ?? '-'}
+                            </span>
+                            {(adminActive || canEditTeamB) && p.user?.id && !p.isHost && (
+                              <button
+                                type="button"
+                                onClick={() => handleTransferPlayer(p.user.id, p.user.fullName, teamBLabel, teamALabel)}
+                                className="px-2 py-0.5 rounded-md text-[11px] font-space font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 border border-rose-200/80 dark:border-rose-800/60 inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                title={`Chuyển ${p.user.fullName} sang Đội ${teamALabel}`}
+                              >
+                                <span className="material-symbols-outlined text-[13px]">swap_horiz</span>
+                                <span className="hidden sm:inline">Sang {teamALabel}</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1826,6 +1904,7 @@ export const MatchDetailPage: React.FC = () => {
           savingStats={savingStats}
           onSaveStats={handleSaveStats}
           onEndMatch={() => handleUpdateStatus('COMPLETED')}
+          onTransferPlayer={handleTransferPlayer}
         />
       )}
 

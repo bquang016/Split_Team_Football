@@ -238,8 +238,10 @@ public class MatchService {
         validateStatusTransition(match.getStatus(), newStatus);
 
         match.setStatus(newStatus);
-        if (newStatus == MatchStatus.TRADE_WINDOW && match.getTradeWindowStartedAt() == null) {
+        if (newStatus == MatchStatus.TRADE_WINDOW) {
             match.setTradeWindowStartedAt(LocalDateTime.now());
+            match.setCaptainAConfirmedNoTrade(false);
+            match.setCaptainBConfirmedNoTrade(false);
         }
         if (newStatus == MatchStatus.IN_PROGRESS && match.getStartAt() == null) {
             match.setStartAt(LocalDateTime.now());
@@ -289,14 +291,14 @@ public class MatchService {
                 .orElseGet(() -> MatchParticipant.builder().match(match).user(hostA).build());
         partA.setIsHost(true);
         partA.setTeam(Team.NONE);
-        partA.setPickOrder(0);
+        partA.setPickOrder(1);
         participantRepository.save(partA);
 
         MatchParticipant partB = participantRepository.findByMatchIdAndUserId(matchId, hostB.getId())
                 .orElseGet(() -> MatchParticipant.builder().match(match).user(hostB).build());
         partB.setIsHost(true);
         partB.setTeam(Team.NONE);
-        partB.setPickOrder(0);
+        partB.setPickOrder(2);
         participantRepository.save(partB);
 
         // Move match status to JERSEY_SELECTION
@@ -331,7 +333,10 @@ public class MatchService {
             throw new BadRequestException("Chỉ Đội trưởng hoặc Quản trị viên mới có quyền xác nhận");
         }
 
-        List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrue(matchId);
+        List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrueOrderByPickOrderAsc(matchId);
+        if (hosts.size() < 2) {
+            hosts = participantRepository.findByMatchIdAndIsHostTrueOrderByJoinedAtAscIdAsc(matchId);
+        }
         if (hosts.size() >= 2 && isCaptain) {
             MatchParticipant host1 = hosts.get(0);
             MatchParticipant host2 = hosts.get(1);
@@ -385,7 +390,10 @@ public class MatchService {
         match.setJerseyCaptainBConfirmed(false);
 
         // Assign actual team to participants based on winner selection
-        List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrue(matchId);
+        List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrueOrderByPickOrderAsc(matchId);
+        if (hosts.size() < 2) {
+            hosts = participantRepository.findByMatchIdAndIsHostTrueOrderByJoinedAtAscIdAsc(matchId);
+        }
         if (hosts.size() >= 2) {
             MatchParticipant host1 = hosts.get(0);
             MatchParticipant host2 = hosts.get(1);
@@ -434,14 +442,26 @@ public class MatchService {
             throw new BadRequestException("Chỉ Đội trưởng hoặc Quản trị viên mới có quyền xác nhận");
         }
 
-        List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrue(matchId);
-        if (hosts.size() >= 2 && isCaptain) {
-            MatchParticipant host1 = hosts.get(0);
-            MatchParticipant host2 = hosts.get(1);
-            if (user.getId().equals(host1.getUser().getId())) {
+        if (isCaptain) {
+            Team team = participantOpt.get().getTeam();
+            if (team == Team.A) {
                 match.setJerseyCaptainAConfirmed(!match.isJerseyCaptainAConfirmed());
-            } else if (user.getId().equals(host2.getUser().getId())) {
+            } else if (team == Team.B) {
                 match.setJerseyCaptainBConfirmed(!match.isJerseyCaptainBConfirmed());
+            } else {
+                List<MatchParticipant> hosts = participantRepository.findByMatchIdAndIsHostTrueOrderByPickOrderAsc(matchId);
+                if (hosts.size() < 2) {
+                    hosts = participantRepository.findByMatchIdAndIsHostTrueOrderByJoinedAtAscIdAsc(matchId);
+                }
+                if (hosts.size() >= 2) {
+                    MatchParticipant host1 = hosts.get(0);
+                    MatchParticipant host2 = hosts.get(1);
+                    if (user.getId().equals(host1.getUser().getId())) {
+                        match.setJerseyCaptainAConfirmed(!match.isJerseyCaptainAConfirmed());
+                    } else if (user.getId().equals(host2.getUser().getId())) {
+                        match.setJerseyCaptainBConfirmed(!match.isJerseyCaptainBConfirmed());
+                    }
+                }
             }
         }
 
@@ -795,9 +815,9 @@ public class MatchService {
 
         if (match.isCaptainAConfirmedProceed() && match.isCaptainBConfirmedProceed()) {
             match.setStatus(MatchStatus.TRADE_WINDOW);
-            if (match.getTradeWindowStartedAt() == null) {
-                match.setTradeWindowStartedAt(LocalDateTime.now());
-            }
+            match.setTradeWindowStartedAt(LocalDateTime.now());
+            match.setCaptainAConfirmedNoTrade(false);
+            match.setCaptainBConfirmedNoTrade(false);
         }
 
         Match saved = matchRepository.save(match);

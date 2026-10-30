@@ -10,5 +10,6 @@ import java.util.UUID;
 @Repository
 public interface MatchGoalRepository extends JpaRepository<MatchGoal, UUID> {
     List<MatchGoal> findByMatchIdOrderByMinuteAscCreatedAtAsc(UUID matchId);
+    List<MatchGoal> findByMatchIdAndScorerId(UUID matchId, UUID scorerId);
     void deleteByMatchId(UUID matchId);
 }

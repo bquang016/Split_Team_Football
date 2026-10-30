@@ -26,6 +26,7 @@ interface PostMatchStatsTabProps {
   savingStats: boolean;
   onSaveStats: () => Promise<void>;
   onEndMatch: () => void;
+  onTransferPlayer?: (playerId: string, playerName: string, fromTeam: string, toTeam: string) => Promise<void> | void;
 }
 
 export const PostMatchStatsTab: React.FC<PostMatchStatsTabProps> = ({
@@ -40,6 +41,7 @@ export const PostMatchStatsTab: React.FC<PostMatchStatsTabProps> = ({
   savingStats,
   onSaveStats,
   onEndMatch,
+  onTransferPlayer,
 }) => {
   const [teamFilter, setTeamFilter] = useState<'ALL' | 'A' | 'B'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -529,19 +531,33 @@ export const PostMatchStatsTab: React.FC<PostMatchStatsTabProps> = ({
 
                       {/* Đội */}
                       <td className="py-3 px-3">
-                        {p.team === 'A' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/40">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                            {teamALabel}
-                          </span>
-                        ) : p.team === 'B' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/40">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                            {teamBLabel}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-slate-400 font-medium">Dự bị</span>
-                        )}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {p.team === 'A' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/40">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                              {teamALabel}
+                            </span>
+                          ) : p.team === 'B' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/40">
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                              {teamBLabel}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400 font-medium">Dự bị</span>
+                          )}
+
+                          {adminActive && !p.isHost && (p.team === 'A' || p.team === 'B') && onTransferPlayer && (
+                            <button
+                              type="button"
+                              onClick={() => onTransferPlayer(p.user.id, p.user.fullName, p.team === 'A' ? teamALabel : teamBLabel, p.team === 'A' ? teamBLabel : teamALabel)}
+                              className="px-2 py-0.5 rounded-md text-[10px] font-space font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors inline-flex items-center gap-1 border border-slate-200 dark:border-slate-700 shadow-2xs"
+                              title={`Chuyển sang ${p.team === 'A' ? teamBLabel : teamALabel}`}
+                            >
+                              <span className="material-symbols-outlined text-[13px]">swap_horiz</span>
+                              <span>Đổi sang {p.team === 'A' ? 'Đội B' : 'Đội A'}</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Bàn thắng */}

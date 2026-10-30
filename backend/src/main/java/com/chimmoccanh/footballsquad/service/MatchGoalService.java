@@ -151,7 +151,7 @@ public class MatchGoalService {
      * Recalculate PlayerStats for all participants after a goal is added or deleted.
      * Only called when match is COMPLETED to keep leaderboard data consistent.
      */
-    private void recalculatePlayerStatsAfterGoalChange(Match match) {
+    public void recalculatePlayerStatsAfterGoalChange(Match match) {
         List<MatchParticipant> participants = participantRepository.findByMatchId(match.getId());
         List<MatchGoal> goals = matchGoalRepository.findByMatchIdOrderByMinuteAscCreatedAtAsc(match.getId());
 
