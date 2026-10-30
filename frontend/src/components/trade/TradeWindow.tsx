@@ -119,8 +119,13 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
   useEffect(() => {
     const calculateTimeLeft = () => {
       if (match?.tradeWindowStartedAt) {
-        const start = new Date(match.tradeWindowStartedAt).getTime();
+        const dateStr = match.tradeWindowStartedAt;
+        const start = new Date(dateStr).getTime();
         const elapsed = Math.floor((Date.now() - start) / 1000);
+        // If invalid, negative or over 24h, fallback to default 600s
+        if (isNaN(elapsed) || elapsed < 0 || elapsed > 86400) {
+          return 600;
+        }
         return Math.max(0, 600 - elapsed);
       }
       return 600;
@@ -129,14 +134,8 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({
     const initial = calculateTimeLeft();
     setTimeLeftSec(initial);
 
-    if (initial <= 0) {
-      if (!hasFiredTimeoutRef.current) {
-        hasFiredTimeoutRef.current = true;
-        onProceedToLineupRef.current();
-      }
-      return;
-    }
-
+    // Do NOT fire onProceedToLineup synchronously on mount to avoid ping-pong loops.
+    // Auto-proceed should only trigger when countdown actively reaches 0.
     const interval = setInterval(() => {
       const remaining = calculateTimeLeft();
       setTimeLeftSec(remaining);

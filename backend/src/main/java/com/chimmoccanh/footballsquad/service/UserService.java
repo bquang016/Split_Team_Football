@@ -67,6 +67,14 @@ public class UserService {
     }
 
     @Transactional
+    public UserDto resetPassword(UUID id) {
+        User user = getUserEntity(id);
+        String defaultPassword = "abc123456";
+        user.setPasswordHash(passwordEncoder.encode(defaultPassword));
+        return UserDto.fromEntity(userRepository.save(user));
+    }
+
+    @Transactional
     public UserDto updateUser(UUID id, UpdateUserRequest request) {
         User user = getUserEntity(id);
         if (request.getUsername() != null && !request.getUsername().isBlank()) {

@@ -58,9 +58,14 @@ export const CaptainJerseyStep: React.FC<CaptainJerseyStepProps> = ({
   const [countdown10s, setCountdown10s] = useState<number | null>(null);
 
   // Detect 2 captains (not tied to Team A / B before jersey selection!)
-  const hosts = participants.filter((p) => p.isHost);
-  const host1 = hosts[0]?.user || match.spinSession?.hostA || null;
-  const host2 = hosts[1]?.user || match.spinSession?.hostB || null;
+  const sortedHosts = [...participants.filter((p) => p.isHost)].sort((a, b) => {
+    const orderA = a.pickOrder ?? 99;
+    const orderB = b.pickOrder ?? 99;
+    if (orderA !== orderB) return orderA - orderB;
+    return (a.user?.fullName || '').localeCompare(b.user?.fullName || '');
+  });
+  const host1 = match.spinSession?.hostA || latestSpin?.hostA || sortedHosts[0]?.user || null;
+  const host2 = match.spinSession?.hostB || latestSpin?.hostB || sortedHosts[1]?.user || null;
   const captainsAssigned = Boolean(host1 && host2 && host1.id !== host2.id);
 
   const isCaptain1 = Boolean(user && host1 && user.id === host1.id);
@@ -84,8 +89,12 @@ export const CaptainJerseyStep: React.FC<CaptainJerseyStepProps> = ({
   const winnerCaptain = winner;
   const otherCaptain = (winner && host1 && host2) ? (winner.id === host1.id ? host2 : host1) : null;
 
-  const captainSpain = isWinnerSpain ? winnerCaptain : otherCaptain;
-  const captainFrance = isWinnerFrance ? winnerCaptain : otherCaptain;
+  // Use team assigned participants if present, otherwise calculate from selection
+  const teamAPart = participants.find((p) => p.isHost && p.team === 'A');
+  const teamBPart = participants.find((p) => p.isHost && p.team === 'B');
+
+  const captainSpain = teamAPart?.user || (isWinnerSpain ? winnerCaptain : otherCaptain);
+  const captainFrance = teamBPart?.user || (isWinnerFrance ? winnerCaptain : otherCaptain);
 
   const isSpainCaptain = Boolean(user && captainSpain && user.id === captainSpain.id);
   const isFranceCaptain = Boolean(user && captainFrance && user.id === captainFrance.id);

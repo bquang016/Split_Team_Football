@@ -39,6 +39,12 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.ok("Đã khóa tài khoản", user));
     }
 
+    @PatchMapping("/users/{id}/reset-password")
+    public ResponseEntity<ApiResponse<UserDto>> resetPassword(@PathVariable UUID id) {
+        UserDto user = userService.resetPassword(id);
+        return ResponseEntity.ok(ApiResponse.ok("Đã đặt lại mật khẩu về mặc định (abc123456)", user));
+    }
+
     @PutMapping("/users/{id}")
     public ResponseEntity<ApiResponse<UserDto>> updateUser(@PathVariable UUID id, @RequestBody UpdateUserRequest request) {
         UserDto user = userService.updateUser(id, request);

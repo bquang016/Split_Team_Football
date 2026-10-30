@@ -18,6 +18,11 @@ export const adminService = {
     return res.data;
   },
 
+  async resetPassword(userId: string): Promise<ApiResponse<User>> {
+    const res = await api.patch<ApiResponse<User>>(`/api/admin/users/${userId}/reset-password`);
+    return res.data;
+  },
+
   async updateUser(
     userId: string,
     data: { fullName?: string; jerseyNumber?: number; email?: string; role?: UserRole; status?: UserStatus }

@@ -16,8 +16,33 @@ export const AdminPage: React.FC = () => {
   const [editJerseyNumber, setEditJerseyNumber] = useState<number | undefined>();
   const [editRole, setEditRole] = useState<UserRole>('PLAYER');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
   const [uploadingAdminAvatar, setUploadingAdminAvatar] = useState(false);
   const adminFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleResetPassword = async (userId: string, fullName: string) => {
+    if (
+      !window.confirm(
+        `Bạn có chắc chắn muốn đặt lại mật khẩu của người dùng "${fullName}" về mặc định "abc123456"?`
+      )
+    ) {
+      return;
+    }
+
+    setResettingPassword(true);
+    try {
+      const res = await adminService.resetPassword(userId);
+      if (res.success) {
+        toast.success(`Đã đặt lại mật khẩu cho "${fullName}" thành công! Mật khẩu mới: abc123456`, {
+          duration: 6000,
+        });
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Lỗi khi đặt lại mật khẩu');
+    } finally {
+      setResettingPassword(false);
+    }
+  };
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -269,6 +294,15 @@ export const AdminPage: React.FC = () => {
                         <Button
                           size="sm"
                           variant="secondary"
+                          onClick={() => handleResetPassword(u.id, u.fullName)}
+                          leftIcon="key"
+                          title="Đặt lại mật khẩu về abc123456"
+                        >
+                          Reset Pass
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
                           onClick={() => openEditModal(u)}
                           leftIcon="edit"
                         >
@@ -355,7 +389,28 @@ export const AdminPage: React.FC = () => {
             onChange={(e) => setEditRole(e.target.value as UserRole)}
           />
 
-          <div className="flex justify-end gap-3 mt-4">
+          {/* Section: Reset Password */}
+          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-bold font-space text-amber-900 dark:text-amber-200">
+                Đặt lại mật khẩu mặc định
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                Mật khẩu của người dùng sẽ trở thành <span className="font-mono font-bold text-amber-600 dark:text-amber-400">abc123456</span>
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              leftIcon="key"
+              isLoading={resettingPassword}
+              onClick={() => editingUser && handleResetPassword(editingUser.id, editingUser.fullName)}
+            >
+              Reset mật khẩu
+            </Button>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-2">
             <Button variant="ghost" onClick={() => setEditingUser(null)}>
               Hủy
             </Button>

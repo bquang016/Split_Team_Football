@@ -14,10 +14,13 @@ import com.chimmoccanh.footballsquad.model.enums.MatchStatus;
 import com.chimmoccanh.footballsquad.model.enums.Team;
 import com.chimmoccanh.footballsquad.model.enums.TradeStatus;
 import com.chimmoccanh.footballsquad.model.enums.UserRole;
+import com.chimmoccanh.footballsquad.repository.MatchGoalRepository;
+import com.chimmoccanh.footballsquad.repository.MatchLineupRepository;
 import com.chimmoccanh.footballsquad.repository.MatchParticipantRepository;
 import com.chimmoccanh.footballsquad.repository.MatchRepository;
 import com.chimmoccanh.footballsquad.repository.TradeRequestRepository;
 import com.chimmoccanh.footballsquad.repository.UserRepository;
+import com.chimmoccanh.footballsquad.model.MatchGoal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +39,9 @@ public class TradeService {
     private final MatchParticipantRepository participantRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final MatchGoalRepository matchGoalRepository;
+    private final MatchLineupRepository lineupRepository;
+    private final MatchGoalService matchGoalService;
 
     @Transactional
     public TradeRequestDto createTrade(UUID matchId, CreateTradeRequestDto request, User sender) {
@@ -108,6 +114,10 @@ public class TradeService {
             participantRepository.save(partOffered);
             participantRepository.save(partWanted);
 
+            syncPlayerGoalsAndMatchScores(match, partOffered, partOffered.getTeam());
+            syncPlayerGoalsAndMatchScores(match, partWanted, partWanted.getTeam());
+            recalculateMatchScoreAndStats(match);
+
             // Notify team participant change
             notificationService.broadcastPickEvent(matchId, "TRADE_SWAP:" + trade.getPlayerOffered().getId() + "<->" + trade.getPlayerWanted().getId());
         } else {
@@ -153,8 +163,14 @@ public class TradeService {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trận đấu"));
 
-        if (match.getStatus() != MatchStatus.TRADE_WINDOW) {
-            throw new BadRequestException("Thao tác chỉ có thể thực hiện trong bước Trao đổi");
+        List<MatchStatus> allowedStatuses = List.of(
+                MatchStatus.TRADE_WINDOW,
+                MatchStatus.TEAMS_SPLIT,
+                MatchStatus.IN_PROGRESS,
+                MatchStatus.COMPLETED
+        );
+        if (!allowedStatuses.contains(match.getStatus())) {
+            throw new BadRequestException("Chỉ có thể chuyển nhượng cầu thủ sau khi đã phân đội");
         }
 
         // Check sender is captain or admin
@@ -163,14 +179,14 @@ public class TradeService {
         boolean isCaptain = senderPart != null && Boolean.TRUE.equals(senderPart.getIsHost());
 
         if (!isCaptain && !isAdmin) {
-            throw new BadRequestException("Chỉ đội trưởng mới có quyền chuyển nhượng cầu thủ");
+            throw new BadRequestException("Chỉ đội trưởng hoặc quản trị viên mới có quyền chuyển nhượng cầu thủ");
         }
 
         MatchParticipant donatedPart = participantRepository.findByMatchIdAndUserId(matchId, request.getPlayerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cầu thủ cần chuyển"));
 
-        if (donatedPart.getTeam() == Team.NONE) {
-            throw new BadRequestException("Cầu thủ chưa thuộc đội nào");
+        if (donatedPart.getTeam() == Team.NONE || donatedPart.getTeam() == Team.BENCH) {
+            throw new BadRequestException("Cầu thủ chưa thuộc đội thi đấu nào");
         }
 
         if (Boolean.TRUE.equals(donatedPart.getIsHost())) {
@@ -191,13 +207,16 @@ public class TradeService {
         int newSizeB = (sourceTeam == Team.B) ? teamBPlayers.size() - 1 : teamBPlayers.size() + 1;
         int diff = Math.abs(newSizeA - newSizeB);
 
-        if (diff > 2) {
+        if (!isAdmin && diff > 2) {
             throw new BadRequestException("Không thể chuyển nhượng: Sĩ số giữa hai đội không được chênh lệch quá 2 người (Hiện tại nếu chuyển sẽ là " + newSizeA + " so với " + newSizeB + ")");
         }
 
         // Apply transfer
         donatedPart.setTeam(targetTeam);
         participantRepository.save(donatedPart);
+
+        syncPlayerGoalsAndMatchScores(match, donatedPart, targetTeam);
+        recalculateMatchScoreAndStats(match);
 
         // Record trade request
         TradeRequest trade = TradeRequest.builder()
@@ -223,6 +242,40 @@ public class TradeService {
         notificationService.broadcastPickEvent(matchId, "TRADE_DONATE:" + donatedPart.getUser().getId() + "->" + targetTeam.name());
         notificationService.broadcastTradeEvent(matchId, dto);
         return dto;
+    }
+
+    private void syncPlayerGoalsAndMatchScores(Match match, MatchParticipant participant, Team newTeam) {
+        if (participant.getUser() == null) return;
+        UUID userId = participant.getUser().getId();
+
+        // Update existing goals scored by this user in this match
+        List<MatchGoal> playerGoals = matchGoalRepository.findByMatchIdAndScorerId(match.getId(), userId);
+        for (MatchGoal goal : playerGoals) {
+            goal.setTeam(newTeam);
+            matchGoalRepository.save(goal);
+        }
+
+        // Update lineup if present
+        lineupRepository.findByMatchIdAndUserId(match.getId(), userId).ifPresent(lineup -> {
+            lineup.setTeam(newTeam);
+            lineupRepository.save(lineup);
+        });
+    }
+
+    private void recalculateMatchScoreAndStats(Match match) {
+        List<MatchGoal> allGoals = matchGoalRepository.findByMatchIdOrderByMinuteAscCreatedAtAsc(match.getId());
+        int scoreA = allGoals.stream().filter(g -> g.getTeam() == Team.A).mapToInt(g -> g.getGoalCount() != null ? g.getGoalCount() : 1).sum();
+        int scoreB = allGoals.stream().filter(g -> g.getTeam() == Team.B).mapToInt(g -> g.getGoalCount() != null ? g.getGoalCount() : 1).sum();
+        match.setScoreTeamA(scoreA);
+        match.setScoreTeamB(scoreB);
+        Match saved = matchRepository.save(match);
+
+        if (saved.getStatus() == MatchStatus.COMPLETED) {
+            matchGoalService.recalculatePlayerStatsAfterGoalChange(saved);
+        }
+
+        notificationService.broadcastScoreEvent(saved.getId(), MatchDto.fromEntity(saved));
+        notificationService.broadcastMatchStatus(saved.getId(), MatchDto.fromEntity(saved));
     }
 
     @Transactional(readOnly = true)
